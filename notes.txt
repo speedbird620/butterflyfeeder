@@ -98,3 +98,13 @@ generera ssh keys
 ssh-keygen -t rsa -b 4096 -C "jingel@skyracer.net"
 
 
+
+git config --global user.email "jingel@skyracer.net"
+git config --global user.name "speedbird620"
+
+
+git init
+git add .
+git commit -m "first commit"
+git remote add origin git@github.com:speedbird620/butterflyfeeder.git
+git push -u origin master
