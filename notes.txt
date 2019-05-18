@@ -1,0 +1,100 @@
+sudo pigpiodsudo raspi-config
+
+Välj: 6 Interface options
+
+Koppla bort UART från terminal, kopplas istället till hårdvara
+
+
+-------------------
+
+Installera följande:
+För software serial:
+
+wget abyz.me.uk/rpi/pigpio/pigpio.zip
+unzip pigpio.zip
+cd PIGPIO
+make
+sudo make install
+
+
+För serieport:
+
+python -m pip install pyserial
+
+
+-----------------
+
+Starta tjänsten
+
+sudo pigpiod
+
+
+-----------------
+
+Stoppa tjänsten
+
+sudo killall pigpiod
+
+-----------------
+
+
+Skapa startupscript
+
+---- script start
+
+#!/bin/bash
+
+# Skapa mapp
+#sudo mkdir /mnt/ram
+
+echo "Lägg upp mapp i RAM-minnet"
+sudo mount -t ramfs ram /mnt/ram
+
+echo "Kopiera tom fil till RAM-minnet"
+sudo cp test.txt /mnt/ram/test.txt
+
+echo "Ändra privilegier"
+sudo chmod 777 /mnt/ram/
+
+echo "Startar IO-driver"
+sudo pigpiod
+
+echo "Startar NMEA_grabber"
+python NMEA_grabber.py &
+
+sleep 5
+
+echo "Startar ADSB handler"
+python adsb_0a.py &
+
+---- script slut
+
+
+-----------------
+
+
+Gör scriptet exekverbart
+
+chmod +x startup.sh
+
+
+----------~o0o~----------
+
+
+Gör så att startup.sh körs automatiskt via crontab:
+
+@reboot /home/pi/startup.sh
+
+
+
+----------~o0o~----------
+
+Flyttat till /bfeeder
+
+installera git
+apt-get install git
+
+generera ssh keys
+ssh-keygen -t rsa -b 4096 -C "jingel@skyracer.net"
+
+
