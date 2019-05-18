@@ -108,3 +108,15 @@ git add .
 git commit -m "first commit"
 git remote add origin git@github.com:speedbird620/butterflyfeeder.git
 git push -u origin master
+
+
+
+För att impelentera ändring:
+
+git status
+
+git diff
+
+git add .
+git commit -m "kommentar"
+git push
