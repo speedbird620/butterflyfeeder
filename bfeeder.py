@@ -249,7 +249,7 @@ def subExtractADSBInfo(Sentence):
                 TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
 		#print str(TimeStamp)
 
-		print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
+		#print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
 		subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
 
 		if Call != "":
@@ -260,7 +260,7 @@ def subExtractADSBInfo(Sentence):
 		else:
 			# The callsign are not present, give it a dummy identity
 			tempCall = "ABAAAA"
-		print "VelH: " + str(VelH) + " VelV: " + str(VelV)
+		#print "VelH: " + str(VelH) + " VelV: " + str(VelV)
 		strVelH = str(round(int(float(VelH)*0.00508)))
 		strVelV = str(round(int(float(VelV)/60)))
 
@@ -317,7 +317,7 @@ def subSendSentence(sentence):
 	while pi.wave_tx_busy(): # wait until all data sent
 		pass
 	pi.wave_delete(wid)
-	print sentence + "*" + chksum
+	#print sentence + "*" + chksum
 
 def subGetNMEA():
         # This sub is reading a temporary text file and extracts the information
@@ -498,8 +498,8 @@ def subExtractNMEAInfo(Sentence):
 		#print str(MyTime)[4:]		# Seconds
 
 		# This function is intended to adjust the time of the RasPi
-		if int(time.strftime("%H%M%S")) - int(MyTime) > 5 or int(MyTime)- int(time.strftime("%H%M%S")) > 5:
-			print "timeDiff: " + str(int(time.strftime("%H%M%S"))- int(MyTime))
+		#if int(time.strftime("%H%M%S")) - int(MyTime) > 5 or int(MyTime)- int(time.strftime("%H%M%S")) > 5:
+			#print "timeDiff: " + str(int(time.strftime("%H%M%S"))- int(MyTime))
 			#PERIOD = yesterday.strftime ('%Y-%m-%d')
 			#new_period = PERIOD.replace(hour = int(MyTime[:-7]), minute = int(MyTime[2:-5]), second = int(MyTime[4:-3]))
 
@@ -613,7 +613,7 @@ while go == 1:
 		# strPart2 = PAAVD-message
 		# Id = the ICAO-identity
 		strPart,strPart2,Id = subExtractADSBInfo(strADSB)
-		print "strADSB: " + strADSB
+		#print "strADSB: " + strADSB
 
 		if len(strPart) > 5:
 			# If the string is longer than 5 chars it is considered valid
@@ -640,7 +640,7 @@ while go == 1:
 	if strADSB.startswith("#S"):
 
 		# Clear screen
-		print "----------o0o----------" # ("\033c")
+		#print "----------o0o----------" # ("\033c")
 
 		# Reset the counter
 		NoOfFlarmContacts = 0

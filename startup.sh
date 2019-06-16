@@ -6,4 +6,4 @@ sudo pigpiod
 sleep 5
 
 echo "Startar ADSB handler"
-python /home/pi/bfeeder/bfeeder.py &
+#python /home/pi/bfeeder/bfeeder.py &
