@@ -331,38 +331,18 @@ def subGetNMEA():
 
 	while found == 1:
 
-		#(count, data) = pi.bb_serial_read(intComPinFLARM)
+                # No Simulation, get the real deal
+                #(count, slask) = pi.bb_serial_read(intComPinFLARM)
+                #data = str(slask)
 
-		#if not GPIO.input(12):
-			# Simulating position Ekeby
-			#data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5922.91850,N,01627.14940,E,0.031,342.13,050219,,,A*6A\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5922.91850,N,01627.14940,E,1,12,2.72,36.6,M,24.1,M,,*62\r\n"
-			#print "Simulating position: Ekeby"
-			#(count, slask) = pi.bb_serial_read(intComPinFLARM)
 
-                #elif not GPIO.input(13):
-                        # Simulating position Dala-Jarna
-                        #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,6032.67070,N,01421.68100,E,0.031,342.13,050219,,,A*61\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,6032.67070,N,01421.68100,E,1,12,2.72,36.6,M,24.1,M,,*69\r\n"
-                        #print "Simulating position: Dala-Jarna"
-			#(count, slask) = pi.bb_serial_read(intComPinFLARM)
+                # Simulating position Sodertalje
+                print "Simulating position: Sodertalje"
+                data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
-                #elif not GPIO.input(16):
-                        # Simulating position Borlange
-                        #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,6025.78530,N,01530.47920,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,6025.78530,N,01530.47920,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
-                        #print "Simulating position: Borlange"
-			#(count, slask) = pi.bb_serial_read(intComPinFLARM)
-
-                #elif not GPIO.input(19):
-                        # Simulating position Trollhattan
-                        #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5819.00290,N,01220.99680,E,0.031,342.13,050219,,,A*68\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5819.00290,N,01220.99680,E,1,12,2.72,36.6,M,24.1,M,,*60\r\n"
-                        #print "Simulating position: Trollhattan"
-			#(count, slask) = pi.bb_serial_read(intComPinFLARM)
-
-		#else:
-
-		# No Simulation, get the real deal
-	        (count, slask) = pi.bb_serial_read(intComPinFLARM)
-		data = str(slask)
-		#print "Data: " + data + " :DataEnd"
+                # Simulating position Billingehus
+                #print "Simulating position: Billingehus"
+                #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5824.16090,N,01349.27640,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5824.16090,N,01349.27640,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
                 # If a string was recieved, lets add it to the leftover string from the last sentence
                 if len(data) > 0:
