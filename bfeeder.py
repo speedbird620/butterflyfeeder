@@ -317,7 +317,7 @@ def subSendSentence(sentence):
 	while pi.wave_tx_busy(): # wait until all data sent
 		pass
 	pi.wave_delete(wid)
-	#print sentence + "*" + chksum
+	print sentence + "*" + chksum
 
 def subGetNMEA():
         # This sub is reading a temporary text file and extracts the information
@@ -332,13 +332,13 @@ def subGetNMEA():
 	while found == 1:
 
                 # No Simulation, get the real deal
-                #(count, slask) = pi.bb_serial_read(intComPinFLARM)
-                #data = str(slask)
+                (count, slask) = pi.bb_serial_read(intComPinFLARM)
+                data = str(slask)
 
 
                 # Simulating position Sodertalje
-                print "Simulating position: Sodertalje"
-                data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
+                #print "Simulating position: Sodertalje"
+                #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
                 # Simulating position Billingehus
                 #print "Simulating position: Billingehus"
