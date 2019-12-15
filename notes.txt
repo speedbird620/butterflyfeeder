@@ -104,18 +104,6 @@ chmod +x startup.sh
 
 
 
-Skapa config-fil:
-
-/home/pi/config/myID.txt
-
-som innehåller följande två rader:
-
-# Enter FLARM id below
-ABCDEF
-
-
-----------~o0o~----------
-
 
 Gör så att startup.sh körs automatiskt via crontab:
 
