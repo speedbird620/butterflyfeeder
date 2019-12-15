@@ -23,6 +23,17 @@ cd PIGPIO
 make
 sudo make install (om inte denna funkar, ta bort katalogen PIGPIO geneom "rm -r PIGPIO" och packa upp zip-filen igen)
 
+Felmeddelande, obs: utredning pågår:
+Traceback (most recent call last):
+  File "setup.py", line 3, in <module>
+    from distutils.core import setup
+ModuleNotFoundError: No module named 'distutils.core'
+make: *** [Makefile:96: install] Error 1
+
+Installera pip:
+
+sudo apt-get install python-pip
+
 
 För serieport:
 
@@ -51,28 +62,32 @@ Skapa startupscript
 
 #!/bin/bash
 
-# Skapa mapp
-#sudo mkdir /mnt/ram
-
-echo "Lägg upp mapp i RAM-minnet"
-sudo mount -t ramfs ram /mnt/ram
-
-echo "Kopiera tom fil till RAM-minnet"
-sudo cp test.txt /mnt/ram/test.txt
-
-echo "Ändra privilegier"
-sudo chmod 777 /mnt/ram/
-
 echo "Startar IO-driver"
 sudo pigpiod
 
-echo "Startar NMEA_grabber"
-python NMEA_grabber.py &
+- hoppa över härifrån 
+
+  # Skapa mapp
+  #sudo mkdir /mnt/ram
+
+  echo "Lägg upp mapp i RAM-minnet"
+  sudo mount -t ramfs ram /mnt/ram
+
+  echo "Kopiera tom fil till RAM-minnet"
+  sudo cp test.txt /mnt/ram/test.txt
+
+  echo "Ändra privilegier"
+  sudo chmod 777 /mnt/ram/
+
+  echo "Startar NMEA_grabber"
+  python NMEA_grabber.py &
+
+- hoppa hit
 
 sleep 5
 
 echo "Startar ADSB handler"
-python adsb_0a.py &
+python bfeeder.py &
 
 ---- script slut
 
@@ -88,11 +103,23 @@ chmod +x startup.sh
 ----------~o0o~----------
 
 
+
+Skapa config-fil:
+
+/home/pi/config/myID.txt
+
+som innehåller följande två rader:
+
+# Enter FLARM id below
+ABCDEF
+
+
+----------~o0o~----------
+
+
 Gör så att startup.sh körs automatiskt via crontab:
 
 @reboot /home/pi/startup.sh
-
-
 
 ----------~o0o~----------
 
