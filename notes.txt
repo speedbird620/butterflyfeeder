@@ -23,12 +23,14 @@ cd PIGPIO
 make
 sudo make install (om inte denna funkar, ta bort katalogen PIGPIO geneom "rm -r PIGPIO" och packa upp zip-filen igen)
 
-Felmeddelande, obs: utredning pågår:
+Vid felmeddelande enligt nedan: låt saken bero. Hittills har det funnkat ändå.
 Traceback (most recent call last):
   File "setup.py", line 3, in <module>
     from distutils.core import setup
 ModuleNotFoundError: No module named 'distutils.core'
 make: *** [Makefile:96: install] Error 1
+
+
 
 Installera pip:
 
@@ -65,7 +67,7 @@ Skapa startupscript
 echo "Startar IO-driver"
 sudo pigpiod
 
-- hoppa över härifrån 
+- hoppa över härifrån, detta är en gammal konfigurering (vill inte slänga den då den kan vara bra att ha)
 
   # Skapa mapp
   #sudo mkdir /mnt/ram
@@ -107,7 +109,7 @@ chmod +x startup.sh
 
 Gör så att startup.sh körs automatiskt via crontab:
 
-@reboot /home/pi/startup.sh
+@reboot /home/pi/butterflyfeeder/startup.sh
 
 ----------~o0o~----------
 
