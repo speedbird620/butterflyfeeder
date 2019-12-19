@@ -4,9 +4,10 @@ Välj: 6 Interface options
 
 Koppla bort UART från terminal, kopplas istället till hårdvara
 
+Installera git:
+apt-get install git
 
 Hämta från git:
-
 git clone https://github.com/speedbird620/butterflyfeeder.git
 
 -------------------
@@ -115,8 +116,6 @@ Gör så att startup.sh körs automatiskt via crontab:
 
 Flyttat till /bfeeder
 
-Installera git:
-apt-get install git
 
 Generera ssh keys:
 ssh-keygen -t rsa -b 4096 -C "jingel@skyracer.net"
