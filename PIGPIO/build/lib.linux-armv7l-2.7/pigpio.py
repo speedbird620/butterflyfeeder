@@ -95,40 +95,44 @@ the pigpio.pi class.
 
 OVERVIEW
 
-Essential
+ESSENTIAL
 
 pigpio.pi                 Initialise Pi connection
 stop                      Stop a Pi connection
 
-Beginner
+BASIC
 
 set_mode                  Set a GPIO mode
 get_mode                  Get a GPIO mode
+
 set_pull_up_down          Set/clear GPIO pull up/down resistor
 
 read                      Read a GPIO
 write                     Write a GPIO
 
+PWM_(overrides_servo_commands_on_same_GPIO)
+
 set_PWM_dutycycle         Start/stop PWM pulses on a GPIO
+set_PWM_frequency         Set PWM frequency of a GPIO
+set_PWM_range             Configure PWM range of a GPIO
+
 get_PWM_dutycycle         Get PWM dutycycle set on a GPIO
+get_PWM_frequency         Get PWM frequency of a GPIO
+get_PWM_range             Get configured PWM range of a GPIO
+
+get_PWM_real_range        Get underlying PWM range for a GPIO
+
+Servo_(overrides_PWM_commands_on_same_GPIO)
 
 set_servo_pulsewidth      Start/Stop servo pulses on a GPIO
+
 get_servo_pulsewidth      Get servo pulsewidth set on a GPIO
 
-callback                  Create GPIO level change callback
-wait_for_edge             Wait for GPIO level change
-
-Intermediate
+INTERMEDIATE
 
 gpio_trigger              Send a trigger pulse to a GPIO
 
 set_watchdog              Set a watchdog on a GPIO
-
-set_PWM_range             Configure PWM range of a GPIO
-get_PWM_range             Get configured PWM range of a GPIO
-
-set_PWM_frequency         Set PWM frequency of a GPIO
-get_PWM_frequency         Get PWM frequency of a GPIO
 
 read_bank_1               Read all bank 1 GPIO
 read_bank_2               Read all bank 2 GPIO
@@ -139,30 +143,41 @@ clear_bank_2              Clear selected GPIO in bank 2
 set_bank_1                Set selected GPIO in bank 1
 set_bank_2                Set selected GPIO in bank 2
 
-Advanced
+callback                  Create GPIO level change callback
 
-get_PWM_real_range        Get underlying PWM range for a GPIO
+wait_for_edge             Wait for GPIO level change
+
+ADVANCED
 
 notify_open               Request a notification handle
 notify_begin              Start notifications for selected GPIO
 notify_pause              Pause notifications
 notify_close              Close a notification
 
-bb_serial_read_open       Open a GPIO for bit bang serial reads
-bb_serial_read            Read bit bang serial data from  a GPIO
-bb_serial_read_close      Close a GPIO for bit bang serial reads
-bb_serial_invert          Invert serial logic (1 invert, 0 normal)
-
 hardware_clock            Start hardware clock on supported GPIO
+
 hardware_PWM              Start hardware PWM on supported GPIO
 
 set_glitch_filter         Set a glitch filter on a GPIO
 set_noise_filter          Set a noise filter on a GPIO
 
-get_pad_strength          Gets a pads drive strength
 set_pad_strength          Sets a pads drive strength
+get_pad_strength          Gets a pads drive strength
 
 shell                     Executes a shell command
+
+Custom
+
+custom_1                  User custom function 1
+custom_2                  User custom function 2
+
+Events
+
+event_callback            Sets a callback for an event
+
+event_trigger             Triggers an event
+
+wait_for_event            Wait for an event
 
 Scripts
 
@@ -173,7 +188,98 @@ script_status             Get script status and parameters
 stop_script               Stop a running script
 delete_script             Delete a stored script
 
-Waves
+I2C
+
+i2c_open                  Opens an I2C device
+i2c_close                 Closes an I2C device
+
+i2c_write_quick           SMBus write quick
+
+i2c_read_byte             SMBus read byte
+i2c_write_byte            SMBus write byte
+
+i2c_read_byte_data        SMBus read byte data
+i2c_write_byte_data       SMBus write byte data
+
+i2c_read_word_data        SMBus read word data
+i2c_write_word_data       SMBus write word data
+
+i2c_read_block_data       SMBus read block data
+i2c_write_block_data      SMBus write block data
+
+i2c_read_i2c_block_data   SMBus read I2C block data
+i2c_write_i2c_block_data  SMBus write I2C block data
+
+i2c_read_device           Reads the raw I2C device
+i2c_write_device          Writes the raw I2C device
+
+i2c_process_call          SMBus process call
+i2c_block_process_call    SMBus block process call
+
+i2c_zip                   Performs multiple I2C transactions
+
+I2C_BIT_BANG
+
+bb_i2c_open               Opens GPIO for bit banging I2C
+bb_i2c_close              Closes GPIO for bit banging I2C
+
+bb_i2c_zip                Performs multiple bit banged I2C transactions
+
+I2C/SPI_SLAVE
+
+bsc_xfer                  I2C/SPI as slave transfer
+bsc_i2c                   I2C as slave transfer
+
+SERIAL
+
+serial_open               Opens a serial device
+serial_close              Closes a serial device
+
+serial_read_byte          Reads a byte from a serial device
+serial_write_byte         Writes a byte to a serial device
+
+serial_read               Reads bytes from a serial device
+serial_write              Writes bytes to a serial device
+
+serial_data_available     Returns number of bytes ready to be read
+
+SERIAL_BIT_BANG_(read_only)
+
+bb_serial_read_open       Open a GPIO for bit bang serial reads
+bb_serial_read_close      Close a GPIO for bit bang serial reads
+
+bb_serial_invert          Invert serial logic (1 invert, 0 normal)
+
+bb_serial_read            Read bit bang serial data from  a GPIO
+
+SPI
+
+spi_open                  Opens a SPI device
+spi_close                 Closes a SPI device
+
+spi_read                  Reads bytes from a SPI device
+spi_write                 Writes bytes to a SPI device
+spi_xfer                  Transfers bytes with a SPI device
+
+SPI_BIT_BANG
+
+bb_spi_open               Opens GPIO for bit banging SPI
+bb_spi_close              Closes GPIO for bit banging SPI
+bb_spi_xfer               Transfers bytes with bit banging SPI
+
+FILES
+
+file_open                 Opens a file
+file_close                Closes a file
+
+file_read                 Reads bytes from a file
+file_write                Writes bytes to a file
+
+file_seek                 Seeks to a position within a file
+
+file_list                 List files which match a pattern
+
+WAVES
 
 wave_clear                Deletes all waveforms
 
@@ -191,97 +297,21 @@ wave_send_using_mode      Transmits a waveform in the chosen mode
 wave_chain                Transmits a chain of waveforms
 
 wave_tx_at                Returns the current transmitting waveform
+
 wave_tx_busy              Checks to see if a waveform has ended
+
 wave_tx_stop              Aborts the current waveform
 
-wave_get_micros           Length in microseconds of the current waveform
-wave_get_max_micros       Absolute maximum allowed micros
-wave_get_pulses           Length in pulses of the current waveform
-wave_get_max_pulses       Absolute maximum allowed pulses
 wave_get_cbs              Length in cbs of the current waveform
 wave_get_max_cbs          Absolute maximum allowed cbs
 
-I2C
+wave_get_micros           Length in microseconds of the current waveform
+wave_get_max_micros       Absolute maximum allowed micros
 
-i2c_open                  Opens an I2C device
-i2c_close                 Closes an I2C device
+wave_get_pulses           Length in pulses of the current waveform
+wave_get_max_pulses       Absolute maximum allowed pulses
 
-i2c_write_quick           SMBus write quick
-i2c_write_byte            SMBus write byte
-i2c_read_byte             SMBus read byte
-i2c_write_byte_data       SMBus write byte data
-i2c_write_word_data       SMBus write word data
-i2c_read_byte_data        SMBus read byte data
-i2c_read_word_data        SMBus read word data
-i2c_process_call          SMBus process call
-i2c_write_block_data      SMBus write block data
-i2c_read_block_data       SMBus read block data
-i2c_block_process_call    SMBus block process call
-
-i2c_read_i2c_block_data   SMBus read I2C block data
-i2c_write_i2c_block_data  SMBus write I2C block data
-
-i2c_read_device           Reads the raw I2C device
-i2c_write_device          Writes the raw I2C device
-
-i2c_zip                   Performs multiple I2C transactions
-
-bb_i2c_open               Opens GPIO for bit banging I2C
-bb_i2c_close              Closes GPIO for bit banging I2C
-bb_i2c_zip                Performs multiple bit banged I2C transactions
-
-SPI
-
-spi_open                  Opens a SPI device
-spi_close                 Closes a SPI device
-
-spi_read                  Reads bytes from a SPI device
-spi_write                 Writes bytes to a SPI device
-spi_xfer                  Transfers bytes with a SPI device
-
-bb_spi_open               Opens GPIO for bit banging SPI
-bb_spi_close              Closes GPIO for bit banging SPI
-bb_spi_xfer               Transfers bytes with bit banging SPI
-
-I2C/SPI_Slave
-
-bsc_xfer                  I2C/SPI as slave transfer
-bsc_i2c                   I2C as slave transfer
-
-Serial
-
-serial_open               Opens a serial device
-serial_close              Closes a serial device
-
-serial_read               Reads bytes from a serial device
-serial_read_byte          Reads a byte from a serial device
-
-serial_write              Writes bytes to a serial device
-serial_write_byte         Writes a byte to a serial device
-
-serial_data_available     Returns number of bytes ready to be read
-
-Files
-
-file_open                 Opens a file
-file_close                Closes a file
-file_read                 Reads bytes from a file
-file_write                Writes bytes to a file
-file_seek                 Seeks to a position within a file
-file_list                 List files which match a pattern
-
-Events
-
-event_callback            Sets a callback for an event
-event_trigger             Triggers an event
-wait_for_event            Wait for an event
-
-Custom
-
-custom_1                  User custom function 1
-custom_2                  User custom function 2
-
-Utility
+UTILITIES
 
 get_current_tick          Get current tick (microseconds)
 
@@ -300,7 +330,7 @@ import threading
 import os
 import atexit
 
-VERSION = "1.42"
+VERSION = "1.45"
 
 exceptions = True
 
@@ -689,6 +719,8 @@ PI_BAD_SPI_BAUD     =-141
 PI_NOT_SPI_GPIO     =-142
 PI_BAD_EVENT_ID     =-143
 PI_CMD_INTERRUPTED  =-144
+PI_NOT_ON_BCM2711   =-145
+PI_ONLY_ON_BCM2711  =-146
 
 # pigpio error text
 
@@ -786,9 +818,9 @@ _errors=[
    [PI_NOT_SERVO_GPIO    , "GPIO is not in use for servo pulses"],
    [PI_NOT_HCLK_GPIO     , "GPIO has no hardware clock"],
    [PI_NOT_HPWM_GPIO     , "GPIO has no hardware PWM"],
-   [PI_BAD_HPWM_FREQ     , "hardware PWM frequency not 1-125M"],
+   [PI_BAD_HPWM_FREQ     , "invalid hardware PWM frequency"],
    [PI_BAD_HPWM_DUTY     , "hardware PWM dutycycle not 0-1M"],
-   [PI_BAD_HCLK_FREQ     , "hardware clock frequency not 4689-250M"],
+   [PI_BAD_HCLK_FREQ     , "invalid hardware clock frequency"],
    [PI_BAD_HCLK_PASS     , "need password to use hardware clock 1"],
    [PI_HPWM_ILLEGAL      , "illegal, PWM in use for main clock"],
    [PI_BAD_DATABITS      , "serial data bits not 1-32"],
@@ -835,6 +867,8 @@ _errors=[
    [PI_NOT_SPI_GPIO      , "no bit bang SPI in progress on GPIO"],
    [PI_BAD_EVENT_ID      , "bad event id"],
    [PI_CMD_INTERRUPTED   , "pigpio command interrupted"],
+   [PI_NOT_ON_BCM2711    , "not available on BCM2711"],
+   [PI_ONLY_ON_BCM2711   , "only available on BCM2711"],
 ]
 
 _except_a = "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n{}"
@@ -1905,7 +1939,7 @@ class pi():
       Frequencies above 30MHz are unlikely to work.
 
          gpio:= see description
-      clkfreq:= 0 (off) or 4689-250000000 (250M)
+      clkfreq:= 0 (off) or 4689-250M (13184-375M for the BCM2711)
 
 
       Returns 0 if OK, otherwise PI_NOT_PERMITTED, PI_BAD_GPIO,
@@ -1955,7 +1989,7 @@ class pi():
       pigpio daemon is started (option -t).
 
          gpio:= see descripton
-      PWMfreq:= 0 (off) or 1-125000000 (125M).
+      PWMfreq:= 0 (off) or 1-125M (1-187.5M for the BCM2711).
       PWMduty:= 0 (off) to 1000000 (1M)(fully on).
 
       Returns 0 if OK, otherwise PI_NOT_PERMITTED, PI_BAD_GPIO,
@@ -1981,14 +2015,15 @@ class pi():
       . .
 
       The actual number of steps beween off and fully on is the
-      integral part of 250 million divided by PWMfreq.
+      integral part of 250M/PWMfreq (375M/PWMfreq for the BCM2711).
 
-      The actual frequency set is 250 million / steps.
+      The actual frequency set is 250M/steps (375M/steps
+      for the BCM2711).
 
-      There will only be a million steps for a PWMfreq of 250.
-      Lower frequencies will have more steps and higher
-      frequencies will have fewer steps.  PWMduty is
-      automatically scaled to take this into account.
+      There will only be a million steps for a PWMfreq of 250
+      (375 for the BCM2711). Lower frequencies will have more
+      steps and higher frequencies will have fewer steps.
+      PWMduty is automatically scaled to take this into account.
 
       ...
       pi.hardware_PWM(18, 800, 250000) # 800Hz 25% dutycycle
@@ -3509,9 +3544,21 @@ class pi():
 
    def bsc_xfer(self, bsc_control, data):
       """
-      This function provides a low-level interface to the
-      SPI/I2C Slave peripheral.  This peripheral allows the
-      Pi to act as a slave device on an I2C or SPI bus.
+      This function provides a low-level interface to the SPI/I2C Slave
+      peripheral on the BCM chip.
+
+      This peripheral allows the Pi to act as a hardware slave device
+      on an I2C or SPI bus.
+
+      This is not a bit bang version and as such is OS timing
+      independent. The bus timing is handled directly by the chip.
+
+      The output process is simple. You simply append data to the FIFO
+      buffer on the chip.  This works like a queue, you add data to the
+      queue and the master removes it.
+
+      This function is not available on the BCM2711 (e.g. as
+      used in the Pi4B).
 
       I can't get SPI to work properly.  I tried with a
       control word of 0x303 and swapped MISO and MOSI.
@@ -3618,6 +3665,9 @@ class pi():
    def bsc_i2c(self, i2c_address, data=[]):
       """
       This function allows the Pi to act as a slave I2C device.
+
+      This function is not available on the BCM2711 (e.g. as
+      used in the Pi4B).
 
       The data bytes (if any) are written to the BSC transmit
       FIFO and the bytes in the BSC receive FIFO are returned.
@@ -5174,7 +5224,7 @@ def xref():
    byte_val: 0-255
    A whole number.
 
-   clkfreq: 4689-250M
+   clkfreq: 4689-250M (13184-375M for the BCM2711)
    The hardware clock frequency.
 
    connected:
@@ -5330,6 +5380,8 @@ def xref():
    PI_NOT_SPI_GPIO = -142
    PI_BAD_EVENT_ID = -143
    PI_CMD_INTERRUPTED = -144
+   PI_NOT_ON_BCM2711   = -145
+   PI_ONLY_ON_BCM2711  = -146
    . .
 
    event:0-31
@@ -5522,7 +5574,7 @@ def xref():
    PWMduty: 0-1000000 (1M)
    The hardware PWM dutycycle.
 
-   PWMfreq: 1-125000000 (125M)
+   PWMfreq: 1-125M (1-187.5M for the BCM2711)
    The hardware PWM frequency.
 
    range_: 25-40000

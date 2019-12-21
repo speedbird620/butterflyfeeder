@@ -32,7 +32,6 @@ ModuleNotFoundError: No module named 'distutils.core'
 make: *** [Makefile:96: install] Error 1
 
 
-
 Installera pip:
 
 sudo apt-get install python-pip
@@ -41,7 +40,9 @@ sudo apt-get install python-pip
 För serieport:
 
 python -m pip install pyserial
-
+sudo apt-get install python3-serial
+sudo apt-get install pigpio
+sudo pip3 install RPi.GPIO
 
 -----------------
 

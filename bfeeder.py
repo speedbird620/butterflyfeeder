@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import sys
 import time
@@ -44,7 +44,7 @@ MyID = ""		# This units identity
 
 fileName = "/mnt/ram/data.txt"
 logFile = "log.txt"
-myIDFile = "/home/pi/config/myID.txt"
+myIDFile = "/home/pi//butterflyfeeder/config/myID.txt"
 
 ZoomFactor = 1
 MaxRange = 6000 # Meters
@@ -57,9 +57,12 @@ strPFLAUID = ""
 intPFLAUDist = 0
 
 # Properties of the com port
-serADSB = serial.Serial ("/dev/ttyS0")  # Open named port
+#serADSB = serial.Serial ("/dev/ttyS0")  # Open named port
 #serADSB = serial.Serial ("/dev/ttyAMA0")  # Open named port
-serADSB.baudrate = intComSpeedADSB      # Set baud rate to 9600
+
+serADSB = serial.Serial ("/dev/ttyS0",intComSpeedADSB)  # Open named port
+
+#serADSB.baudrate = intComSpeedADSB      # Set baud rate to 9600
 serADSB.bytesize = serial.EIGHTBITS     # number of bits per bytes
 serADSB.parity = serial.PARITY_NONE     # set parity check: no parity
 serADSB.stopbits = serial.STOPBITS_ONE  # number of stop bits
@@ -76,14 +79,14 @@ def subCutString(InString):
 	OutString = ""
 	pos = InString.find(",")
 
-        if pos > -1:
-                if pos == 0:
-                        OutString = InString[1:]
+	if pos > -1:
+		if pos == 0:
+			OutString = InString[1:]
 			OutPut = ""
 
-                else:
-                        OutPut = InString[:pos]
-                        OutString = InString[pos+1:]
+		else:
+					OutPut = InString[:pos]
+					OutString = InString[pos+1:]
 
 	# OutPut = the extracted information, OutString = is the inputstring without the extracted information
 	return OutPut,OutString
@@ -135,7 +138,7 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 
 		bearingN = calcBearing(lat1, lon1, lat2, lon2)
 
-                bearingN = degrees(bearingN)
+		bearingN = degrees(bearingN)
 
 		bearing = bearingN
 
@@ -155,24 +158,24 @@ def subExtractADSBInfo(Sentence):
 	# Recieves the MAVLink sentence. Time to assemble the stirng and make some sense of it
 
 	# Remove the last 6 chars (checksum + carrage return)
-        Sentence=Sentence[:-6]
+	Sentence=Sentence[:-6]
 
 	# Remove the three first chars ("#A:")
-        Sentence=Sentence[3:]
+	Sentence=Sentence[3:]
 
 	ICAO,Sentence = subCutString(Sentence) 	# Extracting the ICAO singal
-        Flags,Sentence = subCutString(Sentence)	# Etc ...
-        Call,Sentence = subCutString(Sentence)
-        Squak,Sentence = subCutString(Sentence)
-        Lat,Sentence = subCutString(Sentence)
+	Flags,Sentence = subCutString(Sentence)	# Etc ...
+	Call,Sentence = subCutString(Sentence)
+	Squak,Sentence = subCutString(Sentence)
+	Lat,Sentence = subCutString(Sentence)
 	Long,Sentence = subCutString(Sentence)
-        Alt,Sentence = subCutString(Sentence)
-        Track,Sentence = subCutString(Sentence)
-        VelH,Sentence = subCutString(Sentence)
-        VelV,Sentence = subCutString(Sentence)
-        SigS,Sentence = subCutString(Sentence)
-        SigQ,Sentence = subCutString(Sentence)
-        FPS,Sentence = subCutString(Sentence)
+	Alt,Sentence = subCutString(Sentence)
+	Track,Sentence = subCutString(Sentence)
+	VelH,Sentence = subCutString(Sentence)
+	VelV,Sentence = subCutString(Sentence)
+	SigS,Sentence = subCutString(Sentence)
+	SigQ,Sentence = subCutString(Sentence)
+	FPS,Sentence = subCutString(Sentence)
 
 	#print "ICAO: " + ICAO
 	#print "Flags: " + Flags
@@ -197,28 +200,28 @@ def subExtractADSBInfo(Sentence):
 	#print "MyLat: " + str(MyLat) + " MyLong: " + str(MyLong) + " Lat: " + str(Lat) + " Long: " + str(Long)
 	Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
 
-        Whatever = 0
+	Whatever = 0
 	tempCall = "" 
 	deltaNorth = 0.0
 	deltaEast = 0.0
 	deltaAlt = 0.0
 	Empty = ""
 
-        try:
+	try:
 		# Check if the numbers are valid
 		float(Alt)
- 		float(VelH)
+		float(VelH)
 		float(VelV)
 
-        except:	
+	except:	
 		# Negative, the numbers were not valid
 		#subWrite2Log("Float failed ADSB, Alt: " + Alt + " VelH: " + VelH + " VelV: " + VelV)
-                Whatever = 1
+		Whatever = 1
 
 	# Calculating the altitude difference
-        #deltaAlt = ((float(Alt) / 3.2808399) - float(MyAlt))
+	#deltaAlt = ((float(Alt) / 3.2808399) - float(MyAlt))
 
-        #print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
+	#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
 
 	#if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or Call == MyID or str(VelH) == Empty or str(VelV) == Empty or deltaAlt > MaxDeltaAlt or deltaAlt < MaxDeltaAlt:
 	if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or ICAO == MyID or str(VelH) == Empty or str(VelV) == Empty:
@@ -228,7 +231,7 @@ def subExtractADSBInfo(Sentence):
 		if (cos(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange or (sin(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange:
 			#print "Far far away ..." + str(Distance/ZoomFactor) + " : " + str(MaxRange) + " SigS: " + str(SigS)
 			Whatever = Whatever
-                return " ", " ", " "
+		return " ", " ", " "
 
 	else:
 		# Numbers are valid, lets compile the string
@@ -246,7 +249,7 @@ def subExtractADSBInfo(Sentence):
 		intHrs = int(MyTime[:-4])
 		intMin = int(MyTime[2:-2])
 		intSec = int(MyTime[4:])
-                TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
+		TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
 		#print str(TimeStamp)
 
 		#print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
@@ -265,7 +268,7 @@ def subExtractADSBInfo(Sentence):
 		strVelV = str(round(int(float(VelV)/60)))
 
 		#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
-                subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
+		subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
 
 
 		# PFLAA-message
@@ -317,12 +320,12 @@ def subSendSentence(sentence):
 	while pi.wave_tx_busy(): # wait until all data sent
 		pass
 	pi.wave_delete(wid)
-	print sentence + "*" + chksum
+	print(sentence + "*" + chksum)
 
 def subGetNMEA():
-        # This sub is reading a temporary text file and extracts the information
+	# This sub is reading a temporary text file and extracts the information
 
-        # Check if the file is complete
+	# Check if the file is complete
 	found = 1
 	newData = ""
 	slask = ""
@@ -331,93 +334,94 @@ def subGetNMEA():
 
 	while found == 1:
 
-                # No Simulation, get the real deal
-                (count, slask) = pi.bb_serial_read(intComPinFLARM)
-                data = str(slask)
+		# No Simulation, get the real deal
+		#(count, slask) = pi.bb_serial_read(intComPinFLARM)
+		#data = slask.decode(encoding="utf-8", errors="strict")
 
 
-                # Simulating position Sodertalje
-                #print "Simulating position: Sodertalje"
-                #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
+		# Simulating position Sodertalje
+		print("Simulating position: Sodertalje")
+		data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
-                # Simulating position Billingehus
-                #print "Simulating position: Billingehus"
-                #data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5824.16090,N,01349.27640,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5824.16090,N,01349.27640,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
+		# Simulating position Billingehus
+		#print "Simulating position: Billingehus"
+		#data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5824.16090,N,01349.27640,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5824.16090,N,01349.27640,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
-                # If a string was recieved, lets add it to the leftover string from the last sentence
-                if len(data) > 0:
-                        newData = tmpNMEA + data
-                        tmpNMEA = ""
+		# If a string was recieved, lets add it to the leftover string from the last sentence
+		if len(data) > 0:
+				newData = tmpNMEA + data
+				tmpNMEA = ""
 
-                doLoop = 0
-                #shit = 0
-                listData = []
+		doLoop = 0
+		#shit = 0
+		listData = []
 
-                while doLoop == 0:
+		while doLoop == 0:
 
-                        if newData.find("\r\n") > -1:
-                        # Yes, there is a carrage return in the sentence
+			if newData.find("\r\n") > -1:
+			# Yes, there is a carrage return in the sentence
 
-                                # Cut away if the are any characters in front of the first $
-                                newData = newData[(newData.find("$")):]
+				# Cut away if the are any characters in front of the first $
+				newData = newData[(newData.find("$")):]
 
-                                # Add the sentence to the list of sentences
-                                listData.append(newData[:(newData.find("\r\n"))])
+				# Add the sentence to the list of sentences
+				listData.append(newData[:(newData.find("\r\n"))])
 				#print "appendeing: " + (newData[:(newData.find("\r\n"))])
 
-                                # Cut away the appended sentence from the working material
-                                newData = newData[(2+(newData.find("\r\n"))):]
+				# Cut away the appended sentence from the working material
+				newData = newData[(2+(newData.find("\r\n"))):]
 
 
-                        if newData.find("\r\n") == -1 or len(newData) == 0:
-                        # If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
+			if newData.find("\r\n") == -1 or len(newData) == 0:
+			# If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
 
-                                doLoop = 1
+				doLoop = 1
+				#found = 2
 
-                                #if len(newData) > 0:
+				#if len(newData) > 0:
 
-                                tmpNMEA = newData
+				tmpNMEA = newData
 
-                for line in listData:
-                # displaying the sentences
+		for line in listData:
+		# displaying the sentences
 
 			# Saving the incoming sentence
-                        originalLine = line
+			originalLine = line
 
-                        # Saving the incoming checksum for reference
-                        chksumLine = line[-2:]
+			# Saving the incoming checksum for reference
+			chksumLine = line[-2:]
 
-       	                # Remove checksum
-               	        line = line[:-3]
+			# Remove checksum
+			line = line[:-3]
 
 			# Remove $
 			line = line[1:]
 
-                       	chksum = ""
-                        calc_cksum = 0
+			chksum = ""
+			calc_cksum = 0
 
 			# Calculating checksum
 
-               	        for s in line:
+			for s in line:
 				#print "s: " + str(s)
 				calc_cksum ^= ord(s) 	#calc_cksum ^= ord(s)
-	                        chksum = hex(calc_cksum).upper()
+				chksum = hex(calc_cksum).upper()
 
-                        # Removing the  "0X" from the hex value
-       	                chksum = chksum[2:]
+			# Removing the  "0X" from the hex value
+			chksum = chksum[2:]
 
-               	        # If the checksum is a single digit, adding a zero in front of the digit
-                       	if len(chksum) == 1:
-                        	chksum = "0" + chksum
+			# If the checksum is a single digit, adding a zero in front of the digit
+			if len(chksum) == 1:
+				chksum = "0" + chksum
 
-       	                # Now its time to finally chech the checksum
-               	        if chksum == chksumLine:
-                       		# Bang on! Lets att the line to the list
+			# Now its time to finally chech the checksum
+			if chksum == chksumLine:
+				# Bang on! Lets att the line to the list
 				#listNMEA.append(originalLine + "\r\n")
-                       		listNMEA.append("$" + line)
+				listNMEA.append("$" + line)
 				#print "append: " + originalLine
 			else:
-				print "Checksum failed, found: " + chksumLine + " should be: " + chksum + " line:" + originalLine
+				print("Checksum failed, found: " + chksumLine + " should be: " + chksum + " line:" + originalLine)
 
 			found = 2
 
@@ -427,34 +431,34 @@ def subExtractNMEAInfo(Sentence):
 	global MyLong
 	global MyTime
 
-        # Recieves the NMEA sentence. Time to assemble the stirng and make some sense of it
+	# Recieves the NMEA sentence. Time to assemble the stirng and make some sense of it
 
 	skipGeo = 0
 
-        # Remove the last 6 chars (checksum + carrage return)
-        Sentence=Sentence[:-6]
+	# Remove the last 6 chars (checksum + carrage return)
+	Sentence=Sentence[:-6]
 
-        whatEver,Sentence = subCutString(Sentence)             # Dummy only
-        Time,Sentence = subCutString(Sentence)                # Extracting the time
-        RecieverWarning,Sentence = subCutString(Sentence)      # Etc ...
-        Lat,Sentence = subCutString(Sentence)
-        East,Sentence = subCutString(Sentence)
-        Long,Sentence = subCutString(Sentence)
-        North,Sentence = subCutString(Sentence)
-        VelH,Sentence = subCutString(Sentence)
-        Track,Sentence = subCutString(Sentence)
-        Date,Sentence = subCutString(Sentence)
+	whatEver,Sentence = subCutString(Sentence)             # Dummy only
+	Time,Sentence = subCutString(Sentence)                # Extracting the time
+	RecieverWarning,Sentence = subCutString(Sentence)      # Etc ...
+	Lat,Sentence = subCutString(Sentence)
+	East,Sentence = subCutString(Sentence)
+	Long,Sentence = subCutString(Sentence)
+	North,Sentence = subCutString(Sentence)
+	VelH,Sentence = subCutString(Sentence)
+	Track,Sentence = subCutString(Sentence)
+	Date,Sentence = subCutString(Sentence)
 
 	#subWrite2Log("NMEA Time: " + Time + " , RW: " + RecieverWarning + " , lat: " + Lat +  " , long: " + Long + " , VelH: " + VelH + " , track: " + Track + " , date: " + Date)
 
-        try:
-                # Check if the variables are valid, if not the function is not excecuted
-                float(Lat)
-                float(Long)
+	try:
+			# Check if the variables are valid, if not the function is not excecuted
+			float(Lat)
+			float(Long)
 
-        except:
-		#subWrite2Log("Float failed subExtractNMEAInfo, Lat: " + Lat + " Long: " + Long)
-                skipGeo = 1
+	except:
+	#subWrite2Log("Float failed subExtractNMEAInfo, Lat: " + Lat + " Long: " + Long)
+			skipGeo = 1
 
 	if skipGeo == 0 and (len(Lat) > 0 or len(Long) > 0):
 		# Lat = DDMM.mmmmm shall be recalculated into DD.ddddddd
@@ -463,12 +467,12 @@ def subExtractNMEAInfo(Sentence):
 		MyLat = float(LatDegrees) + (float(LatMinutes)/60)
 
 		# Long = DDDMM.mmmmm shall be recalculated into DD.ddddddd
-        	LongDegrees = Long[:3]
-        	LongMinutes = Long[-8:]
-        	MyLong = float(LongDegrees) + (float(LongMinutes)/60)
+		LongDegrees = Long[:3]
+		LongMinutes = Long[-8:]
+		MyLong = float(LongDegrees) + (float(LongMinutes)/60)
 
 		MySpeed = VelH
-        	#MyTrack = Track
+		#MyTrack = Track
 
 		MyTime = Time[:-3]
 		MyDate = Date
@@ -491,16 +495,16 @@ def subExtractNMEAInfo(Sentence):
 def subStoreFile(infile,outfile):
 
 	#copyfile(pfile, "/log/adsb_" & date & time & ".log")
-        source = open(infile, 'r')
-        source.readlines
+	source = open(infile, 'r')
+	source.readlines
 
-        destination = open(outfile, 'a')
+	destination = open(outfile, 'a')
 
-        for line in source:
-                destination.write(line)
+	for line in source:
+		destination.write(line)
 
-        destination.close
-        source.close
+	destination.close
+	source.close
 
 
 def subGetFLARMID(Sentence):
@@ -508,27 +512,27 @@ def subGetFLARMID(Sentence):
 
 	Sentence,SentenceX = subCutString(Sentence)
 	SentenceX,Sentence = subCutString(SentenceX)
-        Sentence,SentenceX = subCutString(Sentence)
+	Sentence,SentenceX = subCutString(Sentence)
 	SentenceX,Sentence = subCutString(SentenceX)
 	Sentence,SentenceX = subCutString(Sentence)
-        SentenceX,Sentence = subCutString(SentenceX)
+	SentenceX,Sentence = subCutString(SentenceX)
 	#print Sentence[:6]
 	return Sentence[:6]
 
 def subGetPFLAU(Sentence):
-        # "$PFLAU,1,1,1,1,0,,0,,,*4E"
+	# "$PFLAU,1,1,1,1,0,,0,,,*4E"
 
-        Sentence,SentenceX = subCutString(Sentence)
-        SentenceX,Sentence = subCutString(SentenceX)
-        #print Sentence
-        return  Sentence
+	Sentence,SentenceX = subCutString(Sentence)
+	SentenceX,Sentence = subCutString(SentenceX)
+	#print Sentence
+	return  Sentence
 
 def subWrite2Log(info):
-        #GPIO.setwarnings(False)
-        #GPIO.setmode(GPIO.BCM)
-        #GPIO.setup(12, GPIO.IN)
-        #GPIO.setup(13, GPIO.IN)
-        #GPIO.setup(16, GPIO.IN)
+	#GPIO.setwarnings(False)
+	#GPIO.setmode(GPIO.BCM)
+	#GPIO.setup(12, GPIO.IN)
+	#GPIO.setup(13, GPIO.IN)
+	#GPIO.setup(16, GPIO.IN)
 	if not GPIO.input(12) or not GPIO.input(13) or not GPIO.input(16) or not GPIO.input(19):
 		the_log = open(logFile, 'a')
 		the_log.write(info + "\r\n")
@@ -547,54 +551,58 @@ while go == 1:
 		GPIO.setwarnings(False)
 		GPIO.setmode(GPIO.BCM)
 		GPIO.setup(12, GPIO.IN)
-                GPIO.setup(13, GPIO.IN)
-                GPIO.setup(16, GPIO.IN)
-                GPIO.setup(19, GPIO.IN)
+		GPIO.setup(13, GPIO.IN)
+		GPIO.setup(16, GPIO.IN)
+		GPIO.setup(19, GPIO.IN)
 
 		# Getting the identity of the FLARM from the identity text file
 		f = open(myIDFile, 'r')
-	        f.readlines
-	        for line in f:
+		f.readlines
+		for line in f:
 			if line[:1]!="#" and len(line) > 0:
 				MyID = line[:6]
 				subWrite2Log("My ID: " + MyID)
-				print "My ID: " + MyID
+				print("My ID: " + MyID)
 		f.close
 
 		# Opening the software managed serial port
 		try:
 			pi = pigpio.pi()
-		        pi.set_mode(intComPinFLARM, pigpio.INPUT)
-                        pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
-		        pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
+			pi.set_mode(intComPinFLARM, pigpio.INPUT)
+			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
+			pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
 
 		except:
 			# The software serial port is already opened, closing the port and opening it again
-		        pi.bb_serial_read_close(intComPinFLARM)
-		        pi.stop()
+			pi.bb_serial_read_close(intComPinFLARM)
+			pi.stop()
 
 			pi = pigpio.pi()
-                        pi.set_mode(intComPinFLARM, pigpio.INPUT)
-                        pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
-                        pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
+			pi.set_mode(intComPinFLARM, pigpio.INPUT)
+			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
+			pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
 
 		tmpNMEA = ""
 
 	# Continous execution from here
 
 	# Reading serial data from the ADS-B reciever. Format = MAVLink
-	strADSB=serADSB.readline()
+	#strADSB=serADSB.readline()
+	strADSB=serADSB.readline().decode('utf-8')
+
+	print("strADSB: " + strADSB)
 
 	# An A-sentece has been recieved, time to handle it
-        if strADSB.startswith("#A"):
+	#if strADSB.startswith("#A"):
+	#if strADSB.startswith(b"#A"):
+	if str(strADSB).startswith("#A"):
 
-	# Exract information from the MAV-link protocol
+		# Exract information from the MAV-link protocol
 		# strPart = PFLAA-message
 		# strPart2 = PAAVD-message
 		# Id = the ICAO-identity
 		strPart,strPart2,Id = subExtractADSBInfo(strADSB)
-		#print "strADSB: " + strADSB
-
+		
 		if len(strPart) > 5:
 			# If the string is longer than 5 chars it is considered valid
 			# Start counting the planes in the list
@@ -607,17 +615,18 @@ while go == 1:
 			listADSBID.append(Id)
 
 
-                if len(strPart2) > 5:
-                        # If the string is longer than 5 chars it is considered valid
-                        # Start counting the planes in the list
-                        count = count + 1
+		if len(strPart2) > 5:
+			# If the string is longer than 5 chars it is considered valid
+			# Start counting the planes in the list
+			count = count + 1
 
-                        # Add the sentence to the list of ADSB sentences
-                        listADSBSentences.append(strPart2)
+			# Add the sentence to the list of ADSB sentences
+			listADSBSentences.append(strPart2)
 			listADSBID.append(Id)
 
 	# A "S"-sentence has arrived. It is sent once every 1 second and this is used to trigger some functions:  time to send information to the butterfly display
-	if strADSB.startswith("#S"):
+	#if strADSB.startswith("#S"):
+	if str(strADSB).startswith("#S"):
 
 		# Clear screen
 		#print "----------o0o----------" # ("\033c")
@@ -625,18 +634,18 @@ while go == 1:
 		# Reset the counter
 		NoOfFlarmContacts = 0
 
-               	#Read the lastest NMEA-information
-               	subGetNMEA()
+		#Read the lastest NMEA-information
+		subGetNMEA()
 
 		# Extract information from the NMEA-sentence
-	        for NMEAline in listNMEA:
+		for NMEAline in listNMEA:
 
-                        if NMEAline[:6] == "$PFLAA":
+			if NMEAline[:6] == "$PFLAA":
 				# The FLARM is detecting another tranciever in "da hood"
-                                NoOfFlarmContacts = NoOfFlarmContacts + 1
+				NoOfFlarmContacts = NoOfFlarmContacts + 1
 
 				# Extracting the identity if the other tranciever from the message
-                                Id = subGetFLARMID(NMEAline)					# Non-testing
+				Id = subGetFLARMID(NMEAline)					# Non-testing
 				#Id = subGetFLARMID("$PFLAA,0,21,11,11,2,DDE605,0,,0,-0.1,1*32") # Testing
 				# Add the identity to a list, to be used in the future
 				listFLARMID.append(Id)
@@ -644,18 +653,18 @@ while go == 1:
 				# Sending the message to the COM-port
 				subSendSentence(NMEAline)
 
-	                elif NMEAline[:6] == "$GPRMC":
-	                        # GPRMC contains data such as time, long/lat, speed etc. This information needs to be extracted.
+			elif NMEAline[:6] == "$GPRMC":
+				# GPRMC contains data such as time, long/lat, speed etc. This information needs to be extracted.
 				# Extracting the infromation from the GPRMC-message
-	                        subExtractNMEAInfo(NMEAline)
+				subExtractNMEAInfo(NMEAline)
 
 				# Sending the message to the COM-port
 				subSendSentence(NMEAline)
 
-                        elif NMEAline[:6] == "$PFLAU":
-                                # PFLAU contains FLARM-alarms of the most dangerous contact
+			elif NMEAline[:6] == "$PFLAU":
+				# PFLAU contains FLARM-alarms of the most dangerous contact
 				strPFLAU = subGetPFLAU(NMEAline) 			# Non-testing
-                                #strPFLAU = subGetPFLAU("$PFLAU,1,1,1,1,0,,0,10,10,*4E") # Testing
+				#strPFLAU = subGetPFLAU("$PFLAU,1,1,1,1,0,,0,10,10,*4E") # Testing
 
 				#Please note that the PFLAU will be sent a bit later
 
@@ -685,9 +694,9 @@ while go == 1:
 		# Compiling the $PAAVS,AT,ABS - Absolute Output Status Information
 		# $PAAVS,AT,ABS,<TimeOfDumpCreation>,<NumFlarmTargets>,<NumADSBTargets>,<Latitude>,<Longitude>,<AltitudeWGS84>,<IDType>,<ID>
 		intHrs = int(MyTime[:-4])
-	        intMin = int(MyTime[2:-2])
-	        intSec = int(MyTime[4:])
-	        TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
+		intMin = int(MyTime[2:-2])
+		intSec = int(MyTime[4:])
+		TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
 		#subSendSentence("$PAAVS,AT,ABS," + str(TimeStamp) + "," + str(NoOfFlarmContacts) + "," + str(NoOfFlarmContacts) + "," + str(MyLat) + "," + str(MyLong) + "," + str(MyAlt) + ",1," + MyID)
 
 		# Compiling the $PFLAU- Operating Status, Priority IntruderAnd ObstacleWarnings
