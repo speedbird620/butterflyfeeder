@@ -8,8 +8,10 @@ import time
 import re
 import serial
 import datetime
-import RPi.GPIO as GPIO
-from math import *
+# use pigpio in stead
+# # import RPi.GPIO as GPIO
+from math import radians, sin, cos, atan, atan2, sqrt, degrees
+#import math
 from shutil import copyfile
 
 # The butterfly and the ADS-B reciver has different com speed
@@ -44,7 +46,7 @@ MyID = ""		# This units identity
 
 fileName = "/mnt/ram/data.txt"
 logFile = "log.txt"
-myIDFile = "/home/pi//butterflyfeeder/config/myID.txt"
+myIDFile = "/home/pi/butterflyfeeder/config/myID.txt"
 
 ZoomFactor = 1
 MaxRange = 6000 # Meters
@@ -71,29 +73,26 @@ serADSB.xonxoff = False                 # disable software flow control
 serADSB.rtscts = False                  # disable hardware (RTS/CTS) flow control
 serADSB.dsrdtr = False                  # disable hardware (DSR/DTR) flow control
 
-
 def subCutString(InString):
-	# Procedure to extract information from a comma delimitted string
+    """ Procedure to extract information from a comma delimitted string    """
+    OutPut = ""
+    OutString = ""
+    pos = InString.find(",")
 
-	OutPut = ""
-	OutString = ""
-	pos = InString.find(",")
+    if pos > -1:
+        if pos == 0:
+            OutString = InString[1:]
+            OutPut = ""
 
-	if pos > -1:
-		if pos == 0:
-			OutString = InString[1:]
-			OutPut = ""
+        else:
+            OutPut = InString[:pos]
+            OutString = InString[pos+1:]
 
-		else:
-					OutPut = InString[:pos]
-					OutString = InString[pos+1:]
-
-	# OutPut = the extracted information, OutString = is the inputstring without the extracted information
-	return OutPut,OutString
+    # OutPut = the extracted information, OutString = is the inputstring without the extracted information
+    return OutPut,OutString
 
 def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
-	# Calculate distance and bearing between two coordinates
-
+	""" Calculate distance and bearing between two coordinates """
 	Base = 0
 	bearing = 0
 	skipGeo = 0
@@ -116,9 +115,9 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 		lat2 = float(LatTarget)
 		lon2 = float(LongTarget)
 
-		Aaltitude = 0
+		#Not in use Aaltitude = 0
 		bearing = 0
-		Oppsite  = 20000
+		#LR Unused Oppsite  = 20000
 
 		#Haversine Formuala to find vertical angle and distance
 		lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -149,6 +148,9 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 
 
 def subExtractADSBInfo(Sentence):
+	"""
+	Extracts the NMEA sentence
+	"""
 	global MyLat
 	global MyLong
 	global strPFLAUMessage
@@ -292,7 +294,9 @@ def subExtractADSBInfo(Sentence):
 
 
 def subSendSentence(sentence):
-	# Recives a sentence, adds its checsum and transmits it on the serial port
+	""" 
+		Recives a sentence, adds its checsum and transmits it on the serial port 
+	"""
 
 	chksum = 0
 	calc_cksum = 0
@@ -312,7 +316,8 @@ def subSendSentence(sentence):
 		chksum = "0" + chksum
 
 	# Transmit the data with "bit banging"
-	pigpio.exceptions = True
+	#pigpio.exceptions = True
+	pi.exceptions = True
 	pi.wave_clear()
 	pi.wave_add_serial(intComPinBUTTERFLY, intComSpeedBUTTERFLY, sentence + "*" + chksum + "\r\n")
 	wid=pi.wave_create()
@@ -323,7 +328,9 @@ def subSendSentence(sentence):
 	print(sentence + "*" + chksum)
 
 def subGetNMEA():
-	# This sub is reading a temporary text file and extracts the information
+	""" 
+		This sub is reading a temporary text file and extracts the information 
+	"""
 
 	# Check if the file is complete
 	found = 1
@@ -335,7 +342,8 @@ def subGetNMEA():
 	while found == 1:
 
 		# No Simulation, get the real deal
-		#(count, slask) = #data = slask.decode(encoding="utf-8", errors="strict")
+		#(count, slask) = pi.bb_serial_read(intComPinFLARM)
+		#data = slask.decode(encoding="utf-8", errors="strict")
 
 
 		# Simulating position Sodertalje
@@ -348,8 +356,8 @@ def subGetNMEA():
 
 		# If a string was recieved, lets add it to the leftover string from the last sentence
 		if len(data) > 0:
-				newData = tmpNMEA + data
-				tmpNMEA = ""
+			newData = tmpNMEA + data
+			tmpNMEA = ""
 
 		doLoop = 0
 		#shit = 0
@@ -358,7 +366,7 @@ def subGetNMEA():
 		while doLoop == 0:
 
 			if newData.find("\r\n") > -1:
-			# Yes, there is a carrage return in the sentence
+				# Yes, there is a carrage return in the sentence
 
 				# Cut away if the are any characters in front of the first $
 				newData = newData[(newData.find("$")):]
@@ -451,13 +459,13 @@ def subExtractNMEAInfo(Sentence):
 	#subWrite2Log("NMEA Time: " + Time + " , RW: " + RecieverWarning + " , lat: " + Lat +  " , long: " + Long + " , VelH: " + VelH + " , track: " + Track + " , date: " + Date)
 
 	try:
-			# Check if the variables are valid, if not the function is not excecuted
-			float(Lat)
-			float(Long)
+		# Check if the variables are valid, if not the function is not excecuted
+		float(Lat)
+		float(Long)
 
 	except:
 	#subWrite2Log("Float failed subExtractNMEAInfo, Lat: " + Lat + " Long: " + Long)
-			skipGeo = 1
+		skipGeo = 1
 
 	if skipGeo == 0 and (len(Lat) > 0 or len(Long) > 0):
 		# Lat = DDMM.mmmmm shall be recalculated into DD.ddddddd
@@ -527,73 +535,86 @@ def subGetPFLAU(Sentence):
 	return  Sentence
 
 def subWrite2Log(info):
-	#GPIO.setwarnings(False)
 	#GPIO.setmode(GPIO.BCM)
 	#GPIO.setup(12, GPIO.IN)
 	#GPIO.setup(13, GPIO.IN)
 	#GPIO.setup(16, GPIO.IN)
-	if not GPIO.input(12) or not GPIO.input(13) or not GPIO.input(16) or not GPIO.input(19):
+	pi = pigpio.pi()
+    
+	#if not GPIO.input(12) or not GPIO.input(13) or not GPIO.input(16) or not GPIO.input(19):
+	if not (pi.get_mode(12) == pigpio.INPUT) or not (pi.get_mode(13)  == pigpio.INPUT) or not (pi.get_mode(16)  == pigpio.INPUT) or not (pi.get_mode(19)  == pigpio.INPUT):
 		the_log = open(logFile, 'a')
 		the_log.write(info + "\r\n")
 		#print info
 		the_log.close
+
+	# LR What is X?
 	X = 0
 
-while go == 1:
+
+def initial_run():
+	# Things to do before anything else
+	global pi
+	
+	pi = pigpio.pi()
+	
+	# Setting up GPIO
+	# GPIO.setwarnings(False)
+	# GPIO.setmode(GPIO.BCM)
+	pi.set_mode(12, pigpio.INPUT)
+	#GPIO.setup(12, GPIO.IN)
+	pi.set_mode(13, pigpio.INPUT)
+	#GPIO.setup(13, GPIO.IN)
+	pi.set_mode(16, pigpio.INPUT)
+	#GPIO.setup(16, GPIO.IN)
+	pi.set_mode(19, pigpio.INPUT)
+	#GPIO.setup(19, GPIO.IN)
+
+	# Getting the identity of the FLARM from the identity text file
+	f = open(myIDFile, 'r')
+	f.readlines
+	for line in f:
+		if line[:1]!="#" and len(line) > 0:
+			MyID = line[:6]
+			subWrite2Log("My ID: " + MyID)
+			print("My ID: " + MyID)
+	f.close
+
+	# Opening the software managed serial port
+	try:
+		pi = pigpio.pi()
+		pi.set_mode(intComPinFLARM, pigpio.INPUT)
+		pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
+		pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
+
+	except:
+		# The software serial port is already opened, closing the port and opening it again
+		pi.bb_serial_read_close(intComPinFLARM)
+		pi.stop()
+
+		pi = pigpio.pi()
+		pi.set_mode(intComPinFLARM, pigpio.INPUT)
+		pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
+		pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
+
+	tmpNMEA = ""
+
+
+def goahead():
 
 	# Main function
-	if init == 1:
-		# Things to do before anything else
-		init = 0
 
-		# Setting up GPIO
-		GPIO.setwarnings(False)
-		GPIO.setmode(GPIO.BCM)
-		GPIO.setup(12, GPIO.IN)
-		GPIO.setup(13, GPIO.IN)
-		GPIO.setup(16, GPIO.IN)
-		GPIO.setup(19, GPIO.IN)
-
-		# Getting the identity of the FLARM from the identity text file
-		f = open(myIDFile, 'r')
-		f.readlines
-		for line in f:
-			if line[:1]!="#" and len(line) > 0:
-				MyID = line[:6]
-				subWrite2Log("My ID: " + MyID)
-				print("My ID: " + MyID)
-		f.close
-
-		# Opening the software managed serial port
-		try:
-			pi = pigpio.pi()
-			pi.set_mode(intComPinFLARM, pigpio.INPUT)
-			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
-			pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
-
-		except:
-			# The software serial port is already opened, closing the port and opening it again
-			pi.bb_serial_read_close(intComPinFLARM)
-			pi.stop()
-
-			pi = pigpio.pi()
-			pi.set_mode(intComPinFLARM, pigpio.INPUT)
-			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
-			pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
-
-		tmpNMEA = ""
-
-	# Continous execution from here
+	count = 0
 
 	# Reading serial data from the ADS-B reciever. Format = MAVLink
-	#strADSB=serADSB.readline()
+	# strADSB=serADSB.readline()
 	strADSB=serADSB.readline().decode('utf-8')
 
 	print("strADSB: " + strADSB)
 
 	# An A-sentece has been recieved, time to handle it
-	#if strADSB.startswith("#A"):
-	#if strADSB.startswith(b"#A"):
+	# if strADSB.startswith("#A"):
+	# if strADSB.startswith(b"#A"):
 	if str(strADSB).startswith("#A"):
 
 		# Exract information from the MAV-link protocol
@@ -712,7 +733,24 @@ while go == 1:
 		intPFLAUDist = 0
 		count = -1
 
-# Closing the software serial port when exiting
-b_serial_read_close(intComPinFLARM)
-pi.stop()
+if __name__ == "__main__":
+	#TODO: Remove nex line when in prod?
+	#mp.set_start_method("spawn")
+	first_run = 0
+
+	if first_run == 0:
+		initial_run()
+		first_run = 1
+
+	# Main code
+	goahead()
+
+	# Closing the software serial port when exiting
+	pi = pigpio.pi()
+	pi.bb_serial_read_close(intComPinFLARM)
+
+	pi.stop()
+
+	# Quit
+	sys.exit()
 
