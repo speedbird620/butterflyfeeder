@@ -1,0 +1,169 @@
+sudo pigpiodsudo raspi-config
+
+Välj: 6 Interface options
+
+Koppla bort UART från terminal, kopplas istället till hårdvara
+
+Installera git:
+apt-get install git
+
+Hämta från git:
+git clone https://github.com/speedbird620/butterflyfeeder.git
+
+-------------------
+
+Installera följande:
+För software serial:
+
+
+wget abyz.me.uk/rpi/pigpio/pigpio.zip (redan gjort om arkivet är hämtat från git) 
+
+unzip pigpio.zip (redan gjort om arkivet är hämtat från git) 
+
+cd PIGPIO
+make
+sudo make install (om inte denna funkar, ta bort katalogen PIGPIO geneom "rm -r PIGPIO" och packa upp zip-filen igen)
+
+Vid felmeddelande enligt nedan: låt saken bero. Hittills har det funnkat ändå.
+Traceback (most recent call last):
+  File "setup.py", line 3, in <module>
+    from distutils.core import setup
+ModuleNotFoundError: No module named 'distutils.core'
+make: *** [Makefile:96: install] Error 1
+
+
+Installera pip:
+
+sudo apt-get install python-pip
+
+
+För serieport:
+
+python -m pip install pyserial
+sudo apt-get install python3-serial
+sudo apt-get install pigpio
+sudo pip3 install RPi.GPIO
+
+-----------------
+
+Starta tjänsten
+
+sudo pigpiod
+
+
+-----------------
+
+Stoppa tjänsten
+
+sudo killall pigpiod
+
+-----------------
+
+
+Skapa startupscript
+
+---- script start
+
+#!/bin/bash
+
+echo "Startar IO-driver"
+sudo pigpiod
+
+- hoppa över härifrån, detta är en gammal konfigurering (vill inte slänga den då den kan vara bra att ha)
+
+  # Skapa mapp
+  #sudo mkdir /mnt/ram
+
+  echo "Lägg upp mapp i RAM-minnet"
+  sudo mount -t ramfs ram /mnt/ram
+
+  echo "Kopiera tom fil till RAM-minnet"
+  sudo cp test.txt /mnt/ram/test.txt
+
+  echo "Ändra privilegier"
+  sudo chmod 777 /mnt/ram/
+
+  echo "Startar NMEA_grabber"
+  python NMEA_grabber.py &
+
+- hoppa hit
+
+sleep 5
+
+echo "Startar ADSB handler"
+python bfeeder.py &
+
+---- script slut
+
+
+-----------------
+
+
+Gör scriptet exekverbart
+
+chmod +x startup.sh
+
+
+----------~o0o~----------
+
+
+
+
+Gör så att startup.sh körs automatiskt via crontab:
+
+@reboot /home/pi/butterflyfeeder/startup.sh
+
+----------~o0o~----------
+
+Flyttat till /bfeeder
+
+
+Generera ssh keys:
+ssh-keygen -t rsa -b 4096 -C "jingel@skyracer.net"
+
+
+
+git config --global user.email "jingel@skyracer.net"
+git config --global user.name "speedbird620"
+
+
+git init
+git add .
+git commit -m "first commit"
+git remote add origin git@github.com:speedbird620/butterflyfeeder.git
+git push -u origin master
+
+
+
+För att impelentera ändring:
+
+git status
+
+git diff
+
+git add .
+git commit -m "kommentar"
+git push
+
+
+Skapa en ny branch, kallas "flarm_com"
+
+git branch flarm_com
+
+
+
+Växla till branch master
+
+git checkout master
+
+
+
+Växla till branch flarm_com
+
+git checkout master
+
+
+
+Ladde upp branch till git
+
+git push --set-upstream origin flarm_com

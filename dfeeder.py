@@ -147,7 +147,6 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 	# Bearing and distance to the target
 	return int(round(Base*1000)),int(round(bearingN))
 
-
 def subExtractADSBInfo(Sentence):
 	global MyLat
 	global MyLong
@@ -290,7 +289,6 @@ def subExtractADSBInfo(Sentence):
 
 		return part1,part2,ICAO
 
-
 def subSendSentence(sentence):
 	# Recives a sentence, adds its checsum and transmits it on the serial port
 
@@ -322,112 +320,108 @@ def subSendSentence(sentence):
 	pi.wave_delete(wid)
 	print(sentence + "*" + chksum)
 
+def subCheckSum(sentence):
+	
+	# Saving the incoming checksum for reference
+	strOriginal = sentence[-2:]
+
+	# Remove checksum
+	sentence = sentence[:-3]
+
+	# Remove $
+	sentence = sentence[1:]
+
+	chksum = ""
+	calc_cksum = 0
+
+	# Calculating checksum
+
+	for s in sentence:
+		#print "s: " + str(s)
+		calc_cksum ^= ord(s) 	#calc_cksum ^= ord(s)
+		strCalculated = hex(calc_cksum).upper()
+
+	# Removing the  "0X" from the hex value
+	strCalculated = strCalculated[2:]
+
+	# If the checksum is a single digit, adding a zero in front of the digit
+	if len(strCalculated) == 1:
+		strCalculated = "0" + strCalculated
+
+	return strOriginal, strCalculated
+	# Returning the provided checksum (from the original message) and the calculated 
+
 def subGetNMEA():
 	# This sub is reading a temporary text file and extracts the information
 
 	# Check if the file is complete
-	found = 1
 	newData = ""
-	#slask = ""
+	slask = ""
 	data = "xx"
 	global tmpNMEA
 
-	while found == 1:
+	# # No Simulation, get the real deal
+	# (count, slask) = pi.bb_serial_read(intComPinFLARM)
+	# # if count > 0:
+	# #     data = slask.decode()
+	
+	# try:
+	#     data = slask.decode(encoding="utf-8", errors="strict")
+	#     data = slask.decode('ascii')
+	# except
+	#     data = ''
+	
+		
 
-		# No Simulation, get the real deal
-		(count, slask) = pi.bb_serial_read(intComPinFLARM)
+	# Simulating position Sodertalje
+	print("Simulating position: Sodertalje")
+	data = "IJKLMNOP40\r\n$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n$ABCDEFGH"
 
-		if count:
-			data = slask.decode(encoding="utf-8", errors="strict")
+	# Simulating position Billingehus
+	#print "Simulating position: Billingehus"
+	#data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5824.16090,N,01349.27640,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5824.16090,N,01349.27640,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
+	# If a string was recieved, lets add it to the leftover string from the last sentence
+	if len(data) > 0:
+			newData = tmpNMEA + data
+			tmpNMEA = ""
 
+	while len(newData) > 0 and not newData.find("\r\n") == -1:
 
-		# Simulating position Sodertalje
-		#print("Simulating position: Sodertalje")
-		#data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
+		# Entering this while, the variable newData is a long string with several embedded 
+		# carrage returns. This part of the program is dividing the string into a list of 
+		# NMEA senteces. The tricky part is that the information from the serial port might
+		# be read during a trasmission. This means that the last part of the NMEA-sentence 
+		# might be missing. Therefore if the last sentence of the string is not ended with 
+		# a carrage return, that part will be saved in a variable (tmpNMEA) and will be 
+		# added in the beggning of the next.
+		print(newData.find("\r\n"))
 
-		# Simulating position Billingehus
-		#print "Simulating position: Billingehus"
-		#data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5824.16090,N,01349.27640,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5824.16090,N,01349.27640,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
+		if newData.find("\r\n") > -1:
+		# Yes, there is a carrage return in the sentence
 
-		# If a string was recieved, lets add it to the leftover string from the last sentence
-		if len(data) > 0:
-				newData = tmpNMEA + data
-				tmpNMEA = ""
+			# In case there are any characters in front of the first $, these will be removed.
+			newData = newData[(newData.find("$")):]
 
-		doLoop = 0
-		#shit = 0
-		listData = []
+			newLine = newData[:(newData.find("\r\n"))]
 
-		while doLoop == 0:
+			# Extract the provided checksum and calculate the cecksum as reference
+			chkSumLine, chkCalculated = subCheckSum(newLine)
 
-			if newData.find("\r\n") > -1:
-			# Yes, there is a carrage return in the sentence
-
-				# Cut away if the are any characters in front of the first $
-				newData = newData[(newData.find("$")):]
-
-				# Add the sentence to the list of sentences
-				listData.append(newData[:(newData.find("\r\n"))])
-				#print "appendeing: " + (newData[:(newData.find("\r\n"))])
-
-				# Cut away the appended sentence from the working material
-				newData = newData[(2+(newData.find("\r\n"))):]
-
-
-			if newData.find("\r\n") == -1 or len(newData) == 0:
-			# If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
-
-				doLoop = 1
-				#found = 2
-
-				#if len(newData) > 0:
-
-				tmpNMEA = newData
-
-		for line in listData:
-		# displaying the sentences
-
-			# Saving the incoming sentence
-			originalLine = line
-
-			# Saving the incoming checksum for reference
-			chksumLine = line[-2:]
-
-			# Remove checksum
-			line = line[:-3]
-
-			# Remove $
-			line = line[1:]
-
-			chksum = ""
-			calc_cksum = 0
-
-			# Calculating checksum
-
-			for s in line:
-				#print "s: " + str(s)
-				calc_cksum ^= ord(s) 	#calc_cksum ^= ord(s)
-				chksum = hex(calc_cksum).upper()
-
-			# Removing the  "0X" from the hex value
-			chksum = chksum[2:]
-
-			# If the checksum is a single digit, adding a zero in front of the digit
-			if len(chksum) == 1:
-				chksum = "0" + chksum
-
-			# Now its time to finally chech the checksum
-			if chksum == chksumLine:
+			# Time to check the checksum
+			if chkSumLine == chkCalculated:
 				# Bang on! Lets att the line to the list
-				#listNMEA.append(originalLine + "\r\n")
-				listNMEA.append("$" + line)
-				#print "append: " + originalLine
+				listNMEA.append(newLine)
 			else:
-				print("Checksum failed, found: " + chksumLine + " should be: " + chksum + " line:" + originalLine)
+				print("Checksum failed, found: " + chkSumLine + " should be: " + chkCalculated + " line:" + newLine)
 
-			found = 2
+			# Cut away the appended sentence from the working material
+			newData = newData[(2+(newData.find("\r\n"))):]
 
+	if newData.find("\r\n") == -1:
+	# If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
+
+		tmpNMEA = newData	#This is the 'leftover string'
 
 def subExtractNMEAInfo(Sentence):
 	global MyLat
@@ -704,7 +698,7 @@ while go == 1:
 
 		# Compiling the $PFLAU- Operating Status, Priority IntruderAnd ObstacleWarnings
 		# $PFLAU,<RX>,<TX>,<GPS>,<Power>,<AlarmLevel>,<RelativeBearing>,<AlarmType>,<RelativeVertical>,<RelativeDistance>,<ID>
-		#subSendSentence("$PFLAU," + str(NoOfADSBContacts + NoOfFlarmContacts) + "," + strPFLAU[:-3])
+
 		subSendSentence("$PFLAU," + str(NoOfADSBContacts + NoOfFlarmContacts) + "," + strPFLAU)
 
 		# Resetting lists, temp values and counters
@@ -719,4 +713,3 @@ while go == 1:
 # Closing the software serial port when exiting
 b_serial_read_close(intComPinFLARM)
 pi.stop()
-
