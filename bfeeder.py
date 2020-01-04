@@ -368,16 +368,16 @@ def subGetNMEA():
 	while found == 1:
 
 		# No Simulation, get the real deal
-		(count, slask) = pi.bb_serial_read(intComPinFLARM)
+		#(count, slask) = pi.bb_serial_read(intComPinFLARM)
 
-		if count:
-			data = slask.decode(encoding="utf-8", errors="strict")
+		#if count:
+		#	data = slask.decode(encoding="utf-8", errors="strict")
 
 
 
 		# Simulating position Sodertalje
-		#print("Simulating position: Sodertalje")
-		#data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
+		print("Simulating position: Sodertalje")
+		data = "$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n"
 
 		# Simulating position Billingehus
 		#print "Simulating position: Billingehus"
@@ -412,13 +412,13 @@ def subGetNMEA():
 			# If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
 
 				doLoop = 1
-				#found = 2
+				found = 2
 
 				#if len(newData) > 0:
 
 				tmpNMEA = newData
 
-		for line in listData:
+		#for line in listData:
 		# displaying the sentences
 
 			# # Saving the incoming sentence
@@ -451,15 +451,15 @@ def subGetNMEA():
 			# 	chksum = "0" + chksum
 
 			# Now its time to finally chech the checksum
-			if chksum == chksumLine:
-				# Bang on! Lets att the line to the list
-				#listNMEA.append(originalLine + "\r\n")
-				listNMEA.append("$" + line)
-				#print "append: " + originalLine
-			else:
-				print("Checksum failed, found: " + chksumLine + " should be: " + chksum + " line:" + originalLine)
+			# if chksum == chksumLine:
+			# 	# Bang on! Lets att the line to the list
+			# 	#listNMEA.append(originalLine + "\r\n")
+			# 	listNMEA.append("$" + line)
+			# 	#print "append: " + originalLine
+			# else:
+			# 	print("Checksum failed, found: " + chksumLine + " should be: " + chksum + " line:" + originalLine)
 
-			found = 2
+			#found = 2
 
 
 def subExtractNMEAInfo(Sentence):

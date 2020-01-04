@@ -9,6 +9,7 @@ import re
 import serial
 import datetime
 import RPi.GPIO as GPIO
+import binascii
 from math import *
 from shutil import copyfile
 
@@ -47,8 +48,8 @@ logFile = "log.txt"
 myIDFile = "/home/pi//butterflyfeeder/config/myID.txt"
 
 ZoomFactor = 1
-MaxRange = 6000 # Meters
-MaxDeltaAlt = 2000
+MaxRange = 60000 # Meters
+MaxDeltaAlt = 20000
 
 tmpNMEA = ""
 
@@ -142,12 +143,12 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 
 		bearing = bearingN
 
-		subWrite2Log("LatMe: " + str(LatMe) + "LongMe: " + str(LongMe) + " Bearing N : " + str(bearingN) + " Bearing: " + str(bearing) + " MyTrack: " + str(MyTrack))
+		#subWrite2LogsubWrite2Log("LatMe: " + str(LatMe) + "LongMe: " + str(LongMe) + " Bearing N : " + str(bearingN) + " Bearing: " + str(bearing) + " MyTrack: " + str(MyTrack))
 
 	# Bearing and distance to the target
 	return int(round(Base*1000)),int(round(bearingN))
 
-def subExtractADSBInfo(Sentence):
+def subExtractADSBInfo2(Sentence):
 	global MyLat
 	global MyLong
 	global strPFLAUMessage
@@ -252,7 +253,7 @@ def subExtractADSBInfo(Sentence):
 		#print str(TimeStamp)
 
 		#print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
-		subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
+		#subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
 
 		if Call != "":
 			# The callsign to the butterfly display shall be in hexa decimal. 
@@ -267,7 +268,211 @@ def subExtractADSBInfo(Sentence):
 		strVelV = str(round(int(float(VelV)/60)))
 
 		#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
-		subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
+		#subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
+
+
+		# PFLAA-message
+		part1 =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + ICAO + "," + Track + ",0.0," + "20" + "," + strVelH + "," + strVelV + ",8"
+		#part1 = " "
+		#listPlanes.append("PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + tempCall + "," + Track + ",0.0," + "20" + "," + str(round(float(VelV)*0.00508)) + ",8")
+
+		# PAAVD,AT,A - Absolute ADS-B Target Data: str(Track)
+		#$PAAVD,AT,A,<ModeSAddress>,<FlightID>,<EmitterCategory>,<ModeASquawkCode>,<Latitude>,<Longitude>,<AltitudeWGS84>,<AltitudeQNE>,<Track>,<GroundSpeed>,<ClimbRateWGS84>,<ClimbRateBaro>,<SignalStrength>, <PositionTimestamp>,<VelocityTimestamp>,<ModeSTimestamp>,<ADSBVersionNumber>,<QualityIndicator>
+		#part2 = "$PAAVD,AT,A," + ICAO + "," +   Call + "," + "20" + "," + "7000" + "," + str(Lat) + "," + str(Long) + "," + str(Alt) + "," + str(Alt) + "," + "359.3" + "," + str(VelH) + "," + str(round(float(VelV)*0.00508)) + "," + str(round(float(VelV)*0.00508)) + "," + str(SigS) + "," + str(TimeStamp) + "," + str(TimeStamp) + "," + str(TimeStamp) + "," + "2"  + "," + "7A7C" #str(SigQ)
+		part2 = " "
+		#return part1,part2
+
+		# Data of the closest ADS-B transmitter
+		if intPFLAUDist == 0 or Distance < intPFLAUDist:
+			strPFLAUID = ICAO
+			intPFLAUDist = Distance
+			strPFLAUMessage = "1,1,1,0," + str(Bearing) + ",0," + str(int(round(deltaAlt))) + "," + str(int(round(Distance)*1000))
+
+		return part1,part2,ICAO
+
+class clAircraftMessage(object):
+    """
+    ICAO    ICAO number of aircraft (3 bytes) 3C65AC
+    FLAGS   Flags (see below) 1
+    CALL    Callsign of aircraft N61ZP
+    SQ      SQUAWK of aircraft 7232
+    LAT     Latitude in degrees 57.57634
+    LON     Longitude in degrees 17.59554
+    ALT     Pressure altitude in feets 5000
+    TRACK   Track of aircraft in degrees [0,360) 35
+    VELH    Horizontal velocity of aircraft in knots 464
+    VELV    Vertical velocity of aircraft in ft/min -1344
+    SIGS    Signal strength in mV 840
+    SIGQ    Signal quality in mV 72
+    FPS     Number of raw MODE-S frames received from aircraft during last second 5
+    RES     Reserved for future use
+    CRC     CRC16 (described in CRC section) 2D3E
+    """
+    def __init__(self, sentance, diffLat=0, diffLong=0):
+        import time
+
+        (self.format,
+         self.ICAO ,
+         self.FLAGS,
+         self.CALL ,
+         self.SQ   ,
+         self.LAT  ,
+         self.LON  ,
+         self.ALTfeet,
+         self.TRACK,
+         self.VELH ,
+         self.VELV ,
+         self.SIGS ,
+         self.SIGQ ,
+         self.FPS  ,
+         self.RES  ,
+         self.CRC
+        ) = sentance.replace("\r\n","").replace(":",",").split(",")
+        # Then adding some info and calulations:
+        self.AltitudeGPSUnit = "M"
+        self.AltitudeGPS = float(self.ALTfeet) * 0.3048 # According to Google..
+        
+        self.Distance =0
+        self.Bearing = 0
+
+        if diffLat != 0 and diffLong != 0:
+            #Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
+            self.Distance,self.Bearing = subGeoCalc(diffLat, diffLong,self.LAT,self.LON)
+
+def subExtractADSBInfo(Sentence):
+	global MyLat
+	global MyLong
+	global strPFLAUMessage
+	global strPFLAUID
+	global intPFLAUDist
+
+	#subWrite2Log(Sentence)
+
+	# Recieves the MAVLink sentence. Time to assemble the stirng and make some sense of it
+	# #A:78149E,,,,,,,61,531,64,673,48,0,,B674
+	af01 = clAircraftMessage("#A:4CA948,300,,2122,52.99750,13.76526,37000,169,442,0,814,72,3,,6F1C\r\n",59.5673684, 010.4793243)
+	#print(af01.ICAO + " Dist: " + str(af01.Distance) + " Bearing: " + str(af01.Bearing))
+
+	af02 = clAircraftMessage("#A:424313,,,2362,52.43431,14.84535,37000,65,456,0,806,61,0,,6843\r\n")
+	#print(af02.ICAO)
+
+
+	# Remove the last 6 chars (checksum + carrage return)
+	Sentence=Sentence[:-6]
+
+	# Remove the three first chars ("#A:")
+	Sentence=Sentence[3:]
+
+	ICAO,Sentence = subCutString(Sentence) 	# Extracting the ICAO singal
+	Flags,Sentence = subCutString(Sentence)	# Etc ...
+	Call,Sentence = subCutString(Sentence)
+	Squak,Sentence = subCutString(Sentence)
+	Lat,Sentence = subCutString(Sentence)
+	Long,Sentence = subCutString(Sentence)
+	Alt,Sentence = subCutString(Sentence)
+	Track,Sentence = subCutString(Sentence)
+	VelH,Sentence = subCutString(Sentence)
+	VelV,Sentence = subCutString(Sentence)
+	SigS,Sentence = subCutString(Sentence)
+	SigQ,Sentence = subCutString(Sentence)
+	FPS,Sentence = subCutString(Sentence)
+
+	#print "ICAO: " + ICAO
+	#print "Flags: " + Flags
+	#print "Call: " + Call
+	#print "SQUAK: " + Squak
+	#print "Lat: " + Lat
+	#print "Long: " + Long
+	#print "Alt: " + Alt
+	#print "Track: " + Track
+	#print "VelH: " + VelH
+	#print "VelV: " + VelV
+	#print "SigS: " + SigS
+	#print "SigQ: " + SigQ
+	#print "FPS: " + FPS
+
+	#MyLat = 59.18712		# My position
+	#MyLong = 17.65699	# My position
+	#MyAlt = 0		# My position
+	Distance = 0.0
+	Bearing = 0.0
+
+	#print "MyLat: " + str(MyLat) + " MyLong: " + str(MyLong) + " Lat: " + str(Lat) + " Long: " + str(Long)
+	Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
+
+	Whatever = 0
+	tempCall = "" 
+	deltaNorth = 0.0
+	deltaEast = 0.0
+	deltaAlt = 0.0
+	Empty = ""
+
+	try:
+		# Check if the numbers are valid
+		float(Alt)
+		float(VelH)
+		float(VelV)
+
+	except:	
+		# Negative, the numbers were not valid
+		#subWrite2Log("Float failed ADSB, Alt: " + Alt + " VelH: " + VelH + " VelV: " + VelV)
+		Whatever = 1
+
+	# Calculating the altitude difference
+	#deltaAlt = ((float(Alt) / 3.2808399) - float(MyAlt))
+
+	#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
+
+	#if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or Call == MyID or str(VelH) == Empty or str(VelV) == Empty or deltaAlt > MaxDeltaAlt or deltaAlt < MaxDeltaAlt:
+	if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or ICAO == MyID or str(VelH) == Empty or str(VelV) == Empty:
+		# Distance and bearing is zero, values are not valid OR the plane is too far away OR its my own signal OR VelV and VelH are empty: skip further handling
+		Whatever = 1
+
+		if (cos(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange or (sin(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange:
+			print("Far far away ..." + str(Distance/ZoomFactor) + " : " + str(MaxRange) + " SigS: " + str(SigS))
+			Whatever = Whatever
+		return " ", " ", " "
+
+	else:
+		# Numbers are valid, lets compile the string
+
+		# Calculating the horisontal distance to the target
+		deltaNorth = (cos(radians(Bearing))*(Distance)/ZoomFactor)
+
+		# Calculating the horisontal distance to the target
+		deltaEast = (sin(radians(Bearing))*(Distance)//ZoomFactor)
+
+		# Calculating the altitude difference
+		deltaAlt = ((float(Alt) / 3.2808399) - MyAlt)
+
+		# Calculating timestamps in milliseconds
+		intHrs = int(MyTime[:-4])
+		intMin = int(MyTime[2:-2])
+		intSec = int(MyTime[4:])
+		TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
+		#print str(TimeStamp)
+
+		#print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
+		#subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
+
+		if Call != "":
+			# The callsign to the butterfly display shall be in hexa decimal. 
+			# Converting to hexa decimal and keep the last 6 characters
+
+			#tempCall = Call.encode("hex")		# Python 2
+
+			tempCall = binascii.b2a_hex(bytes(Call, 'utf-8'))	# Python 3
+
+			tempCall = tempCall[-6:]
+		else:
+			# The callsign are not present, give it a dummy identity
+			tempCall = "ABAAAA"
+		#print "VelH: " + str(VelH) + " VelV: " + str(VelV)
+		strVelH = str(round(int(float(VelH)*0.00508)))
+		strVelV = str(round(int(float(VelV)/60)))
+
+		#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
+		#subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
 
 
 		# PFLAA-message
@@ -361,9 +566,9 @@ def subGetNMEA():
 	global tmpNMEA
 
 	# # No Simulation, get the real deal
-	# (count, slask) = pi.bb_serial_read(intComPinFLARM)
-	# # if count > 0:
-	# #     data = slask.decode()
+	(count, slask) = pi.bb_serial_read(intComPinFLARM)
+	if count > 0:
+		data = slask.decode()
 
 	# try:
 	#     data = slask.decode(encoding="utf-8", errors="strict")
@@ -372,8 +577,8 @@ def subGetNMEA():
 	#     data = ''
 
 	# Simulating position Sodertalje
-	print("Simulating position: Sodertalje")
-	data = "IJKLMNOP40\r\n$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n$ABCDEFGH"
+	#print("Simulating position: Sodertalje")
+	#data = "IJKLMNOP40\r\n$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n$ABCDEFGH"
 
 	# Simulating position Billingehus
 	#print "Simulating position: Billingehus"
@@ -393,7 +598,7 @@ def subGetNMEA():
 		# might be missing. Therefore if the last sentence of the string is not ended with 
 		# a carrage return, that part will be saved in a variable (tmpNMEA) and will be 
 		# added in the beggning of the next.
-		print(newData.find("\r\n"))
+		# print(newData.find("\r\n"))
 
 		if newData.find("\r\n") > -1:
 		# Yes, there is a carrage return in the sentence
@@ -421,71 +626,153 @@ def subGetNMEA():
 
 		tmpNMEA = newData	#This is the 'leftover string'
 
+class clNMEAMessage(object):
+    """
+	Time
+	RecieverWarning
+	Lat
+	East
+	Long
+	North
+	VelH
+	Track
+	Date
+    """
+    #def __init__(self, sentance, diffLat=0, diffLong=0):
+    def __init__(self, sentance):
+        import time
+
+		# $GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E
+		# GPRMC: $GPRMC
+		# Time: 141328.00
+		# RecieverWarning: A
+		# Lat: 5911.22440
+		# N_or_S: N
+		# Long: 01739.41460
+		# E_or_W: E
+		# VelH: 0.031
+		# Track: 342.13
+		# Time: 050219,
+		# Magnetic: 
+		# Magnetic_E_or_W
+		# CRC: A*6E
+
+        (self.GPRMC,
+		 self.Time ,
+		 self.RecieverWarning ,
+		 self.Lat ,
+		 self.N_or_S ,
+		 self.Long ,
+		 self.E_or_W ,
+		 self.VelH ,
+		 self.Track ,
+		 self.Date ,
+		 self.Magnetic ,
+		 self.Magnetic_E_or_W ,
+		 self.CRC
+        ) = sentance.replace("\r\n","").replace(":",",").split(",")
+
+        # # Then adding some info and calulations:
+        # self.AltitudeGPSUnit = "M"
+        # self.AltitudeGPS = float(self.ALTfeet) * 0.3048 # According to Google..
+        
+        # self.Distance =0
+        # self.Bearing = 0
+
+        # if diffLat != 0 and diffLong != 0:
+        #     #Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
+        #     self.Distance,self.Bearing = subGeoCalc(diffLat, diffLong,self.LAT,self.LON)
+
 def subExtractNMEAInfo(Sentence):
-    global MyLat
-    global MyLong
-    global MyTime
+	global MyLat
+	global MyLong
+	global MyTime
 
-    # Recieves the NMEA sentence. Time to assemble the stirng and make some sense of it
+	# Recieves the NMEA sentence. Time to assemble the stirng and make some sense of it
 
-    #skipGeo = 0
+	skipGeo = 0
 
-    # Remove the last 6 chars (checksum + carrage return)
-    Sentence=Sentence[:-6]
+	# af01 = clAircraftMessage("#A:4CA948,300,,2122,52.99750,13.76526,37000,169,442,0,814,72,3,,6F1C\r\n",59.5673684, 010.4793243)
+	
+	# 
+	
+	
+	strNMEASplit = clNMEAMessage(Sentence)
+	print(strNMEASplit.Date)
 
-    whatEver,Sentence = subCutString(Sentence)             # Dummy only
-    Time,Sentence = subCutString(Sentence)                # Extracting the time
-    RecieverWarning,Sentence = subCutString(Sentence)      # Etc ...
-    Lat,Sentence = subCutString(Sentence)
-    East,Sentence = subCutString(Sentence)
-    Long,Sentence = subCutString(Sentence)
-    North,Sentence = subCutString(Sentence)
-    VelH,Sentence = subCutString(Sentence)
-    Track,Sentence = subCutString(Sentence)
-    Date,Sentence = subCutString(Sentence)
+	Sentence=Sentence[:-6]
 
-    #subWrite2Log("NMEA Time: " + Time + " , RW: " + RecieverWarning + " , lat: " + Lat +  " , long: " + Long + " , VelH: " + VelH + " , track: " + Track + " , date: " + Date)
-
-    try:
-        # Check if the variables are valid, if not the function is not excecuted
-        x = float(Lat)
-        x = float(Long)
+	Time = strNMEASplit.Time
+	RecieverWarning = strNMEASplit.RecieverWarning
+	Lat = strNMEASplit.Lat
+	East = strNMEASplit.E_or_W
+	Long = strNMEASplit.Long
+	North = strNMEASplit.N_or_S
+	VelH = strNMEASplit.VelH
+	Track = strNMEASplit.Track
+	Date = strNMEASplit.Date
 
 
-        if (len(Lat) > 0 or len(Long) > 0):
-            # Lat = DDMM.mmmmm shall be recalculated into DD.ddddddd
-            LatDegrees = Lat[:2]
-            LatMinutes = Lat[-8:]
-            MyLat = float(LatDegrees) + (float(LatMinutes)/60)
+	#print("Date: " + strNMEASplit.Date + " , time: " + strNMEASplit.Time)
 
-            # Long = DDDMM.mmmmm shall be recalculated into DD.ddddddd
-            LongDegrees = Long[:3]
-            LongMinutes = Long[-8:]
-            MyLong = float(LongDegrees) + (float(LongMinutes)/60)
 
-            MySpeed = VelH
-            #MyTrack = Track
+	# Remove the last 6 chars (checksum + carrage return)
+	# Sentence=Sentence[:-6]
 
-            MyTime = Time[:-3]
-            MyDate = Date
-            #print str(MyTime)
-            #print str(MyTime)[:-4]		# Hours
-            #print str(MyTime)[2:-2]	# Minutes
-            #print str(MyTime)[4:]		# Seconds
+	# whatEver,Sentence = subCutString(Sentence)             # Dummy only
+	# Time,Sentence = subCutString(Sentence)                # Extracting the time
+	# RecieverWarning,Sentence = subCutString(Sentence)      # Etc ...
+	# Lat,Sentence = subCutString(Sentence)
+	# East,Sentence = subCutString(Sentence)
+	# Long,Sentence = subCutString(Sentence)
+	# North,Sentence = subCutString(Sentence)
+	# VelH,Sentence = subCutString(Sentence)
+	# Track,Sentence = subCutString(Sentence)
+	# Date,Sentence = subCutString(Sentence)
 
-            # This function is intended to adjust the time of the RasPi
-            #if int(time.strftime("%H%M%S")) - int(MyTime) > 5 or int(MyTime)- int(time.strftime("%H%M%S")) > 5:
-                #print "timeDiff: " + str(int(time.strftime("%H%M%S"))- int(MyTime))
-                #PERIOD = yesterday.strftime ('%Y-%m-%d')
-                #new_period = PERIOD.replace(hour = int(MyTime[:-7]), minute = int(MyTime[2:-5]), second = int(MyTime[4:-3]))
 
-                # ..... to be continued .....
+	#subWrite2Log("NMEA Time: " + Time + " , RW: " + RecieverWarning + " , lat: " + Lat +  " , long: " + Long + " , VelH: " + VelH + " , track: " + Track + " , date: " + Date)
 
-            subWrite2Log("New own data, lat: " + str(MyLat) +  " , long: " + str(MyLong))
-            #print "New own data, lat: " + str(MyLat) +  " , long: " + str(MyLong)
+	try:
+		# Check if the variables are valid, if not the function is not excecuted
+		x = float(Lat)
+		x = float(Long)
 
-    except:
-        jantar = 0
+
+		if (len(Lat) > 0 or len(Long) > 0):
+			# Lat = DDMM.mmmmm shall be recalculated into DD.ddddddd
+			LatDegrees = Lat[:2]
+			LatMinutes = Lat[-8:]
+			MyLat = float(LatDegrees) + (float(LatMinutes)/60)
+
+			# Long = DDDMM.mmmmm shall be recalculated into DD.ddddddd
+			LongDegrees = Long[:3]
+			LongMinutes = Long[-8:]
+			MyLong = float(LongDegrees) + (float(LongMinutes)/60)
+
+			MySpeed = VelH
+			#MyTrack = Track
+
+			MyTime = Time[:-3]
+			MyDate = Date
+			#print str(MyTime)
+			#print str(MyTime)[:-4]		# Hours
+			#print str(MyTime)[2:-2]	# Minutes
+			#print str(MyTime)[4:]		# Seconds
+
+			# This function is intended to adjust the time of the RasPi
+			#if int(time.strftime("%H%M%S")) - int(MyTime) > 5 or int(MyTime)- int(time.strftime("%H%M%S")) > 5:
+				#print "timeDiff: " + str(int(time.strftime("%H%M%S"))- int(MyTime))
+				#PERIOD = yesterday.strftime ('%Y-%m-%d')
+				#new_period = PERIOD.replace(hour = int(MyTime[:-7]), minute = int(MyTime[2:-5]), second = int(MyTime[4:-3]))
+
+				# ..... to be continued .....
+
+			#subWrite2Log("New own data, lat: " + str(MyLat) +  " , long: " + str(MyLong))
+			#print "New own data, lat: " + str(MyLat) +  " , long: " + str(MyLong)
+
+	except:
+		jantar = 0
 
 def subStoreFile(infile,outfile):
 
@@ -528,11 +815,10 @@ def subWrite2Log(info):
 	#GPIO.setup(12, GPIO.IN)
 	#GPIO.setup(13, GPIO.IN)
 	#GPIO.setup(16, GPIO.IN)
-	if not GPIO.input(12) or not GPIO.input(13) or not GPIO.input(16) or not GPIO.input(19):
-		the_log = open(logFile, 'a')
-		the_log.write(info + "\r\n")
-		#print info
-		the_log.close
+	the_log = open(logFile, 'a')
+	the_log.write(info)
+	#print info
+	the_log.close
 	X = 0
 
 while go == 1:
@@ -619,12 +905,17 @@ while go == 1:
 			listADSBSentences.append(strPart2)
 			listADSBID.append(Id)
 
+
 	# A "S"-sentence has arrived. It is sent once every 1 second and this is used to trigger some functions:  time to send information to the butterfly display
 	#if strADSB.startswith("#S"):
 	if str(strADSB).startswith("#S"):
 
 		# Clear screen
 		#print "----------o0o----------" # ("\033c")
+
+		#tmpTst, tmpTst1, tmpTst2 = subExtractADSBInfo("A:8962E5,1C00,ETD140,,59.53326,18.30945,35000,105,528,-64,676,67,4,,546B\r\n")
+		#listADSBSentences.append(tmpTst)
+		#count = count + 1
 
 		# Reset the counter
 		NoOfFlarmContacts = 0
@@ -707,6 +998,8 @@ while go == 1:
 		strPFLAUID = ""
 		intPFLAUDist = 0
 		count = -1
+		# Resetting the list of identeties heard the last scan
+		listADSBID.clear()
 
 # Closing the software serial port when exiting
 b_serial_read_close(intComPinFLARM)
