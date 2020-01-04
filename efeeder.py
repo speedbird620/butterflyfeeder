@@ -17,11 +17,13 @@ from shutil import copyfile
 intComSpeedADSB = 115200
 
 intComSpeedFLARM = 38400 # 19200
-intComPinFLARM = 18
+intComPinFLARM_RX = 18
+intComPinFLARM_TX = 22
 
 intComSpeedBUTTERFLY = 38400 # 57600
 intComPinBUTTERFLY = 17
 
+intSpeed = 0
 intPlaneCounter = 0
 listADSBSentences = []
 listADSBID = []
@@ -47,7 +49,7 @@ fileName = "/mnt/ram/data.txt"
 logFile = "log.txt"
 myIDFile = "/home/pi//butterflyfeeder/config/myID.txt"
 
-ZoomFactor = 1
+ZoomFactor = 10
 MaxRange = 60000 # Meters
 MaxDeltaAlt = 20000
 
@@ -72,6 +74,141 @@ serADSB.xonxoff = False                 # disable software flow control
 serADSB.rtscts = False                  # disable hardware (RTS/CTS) flow control
 serADSB.dsrdtr = False                  # disable hardware (DSR/DTR) flow control
 
+
+class clRADIOIDMessage(object):
+    """
+	Time
+	RecieverWarning
+	Lat
+	East
+	Long
+	North
+	VelH
+	Track
+	Date
+    """
+    #def __init__(self, sentance, diffLat=0, diffLong=0):
+    def __init__(self, sentance):
+        import time
+
+		# $PFLAC,A,RADIOID,1,4AD4F5*02
+		# PFLAC: $PFLAC
+		# RecieverWarning: A
+		# RADIOID: RADIOID
+		# Identity: 4AD4F5
+        # CRC: *02
+
+        (self.GPRMC,
+		 self.PFLAC ,
+		 self.RecieverWarning ,
+		 self.RADIOID ,
+		 self.Identity,
+         self.CRC
+        ) = sentance.replace("\r\n","").replace("*",",").split(",")
+
+def subGetFLARM_ID(TX,RX):
+	# This sub is supposed to identify the FLARM identity and the com speed
+
+	GiveUp = 0
+	strBlank = ""
+
+	# The usual suspect com speed
+	ComSpeed = [38400, 9600, 19200, 28800, 4800, 56000, 56000]
+	ComSpeed_Pointer = 0
+
+	while GiveUp == 0:
+
+		if ComSpeed_Pointer > 4:
+
+			# No joy, all of the com speeds has been tested
+			GiveUp = 1
+
+		try:
+			# Opening the software serial port
+			pi = pigpio.pi()
+			pi.set_mode(RX, pigpio.INPUT)
+			pi.set_mode(TX, pigpio.OUTPUT)
+			pi.bb_serial_read_open(RX, ComSpeed[ComSpeed_Pointer], 8)
+			print("Testing comspeed " + ComSpeed[ComSpeed_Pointer])
+
+		except:
+			# The software serial port is already opened, closing the port and opening it again
+			pi.bb_serial_read_close(RX)
+			pi.stop()
+
+			pi = pigpio.pi()
+			pi.set_mode(RX, pigpio.INPUT)
+			pi.set_mode(TX, pigpio.OUTPUT)
+			pi.bb_serial_read_open(RX, ComSpeed[ComSpeed_Pointer], 8)
+			print("Testing comspeed " + str(ComSpeed[ComSpeed_Pointer]))
+
+
+		# The magic word for obtaining the ID from the flarm
+		strRequestID = "$PFLAC,R,RADIOID\r\n"
+
+		# Transmit the data with "bit banging"
+		pigpio.exceptions = True
+		pi.wave_clear()
+		pi.wave_add_serial(TX, ComSpeed[ComSpeed_Pointer], strRequestID)
+		wid=pi.wave_create()
+		pi.wave_send_once(wid)   # transmit serial data
+		while pi.wave_tx_busy(): # wait until all data sent
+			pass
+		pi.wave_delete(wid)
+
+		# Waiting for the response
+		time.sleep(2)
+
+		# Reading the response
+		data = ""
+		(count, slask) = pi.bb_serial_read(RX)
+		if count > 0:
+			# Translating the bit array into a string
+			data = slask.decode("ascii", "ignore")
+
+		while len(data) > 0 and not data.find("\r\n") == -1:
+
+			if data.find("\r\n") > -1:
+				# Yes, there is a carrage return in the sentence
+
+				# In case there are any characters in front of the first $, these will be removed.
+				data = data[(data.find("$")):]
+
+				# Extracting the line
+				newLine = data[:(data.find("\r\n"))]
+
+				# Extract the provided checksum and calculate the cecksum as reference
+				chkSumLine, chkCalculated = subCheckSum(newLine)
+
+				# Time to check the checksum
+				if chkSumLine == chkCalculated:
+					# The checksum is correct
+
+					# Is this the line the we are looking for? PFLAC is the message containing the FLARM-identity.
+					if newLine[:6] == "$PFLAC":
+
+						# Extracting the information within the string
+						returnLine = clRADIOIDMessage(newLine)
+
+						print("Com speed detected: " + str(ComSpeed[ComSpeed_Pointer]))
+						print("ID: " + returnLine.Identity)
+						strBlank = returnLine.Identity
+						return ComSpeed[ComSpeed_Pointer], returnLine.Identity # Returning the comspeed and the identity of the FLARM
+						GiveUp = 1
+
+				else:
+					print("Checksum failed, found: " + chkSumLine + " should be: " + chkCalculated + " line:" + newLine)
+
+			# Cut away the handled sentence from the working material
+			data = data[(2+(data.find("\r\n"))):]
+
+		ComSpeed_Pointer = ComSpeed_Pointer + 1
+		pi.bb_serial_read_close(RX)
+		pi.stop() 
+	
+	if GiveUp == 1 and len(strBlank) == 0:
+		print("No communication was detected, keeping the default values")
+		return 0, strBlank
 
 def subCutString(InString):
 	# Procedure to extract information from a comma delimitted string
@@ -147,148 +284,6 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 
 	# Bearing and distance to the target
 	return int(round(Base*1000)),int(round(bearingN))
-
-def subExtractADSBInfo2(Sentence):
-	global MyLat
-	global MyLong
-	global strPFLAUMessage
-	global strPFLAUID
-	global intPFLAUDist
-
-	# Recieves the MAVLink sentence. Time to assemble the stirng and make some sense of it
-
-	# Remove the last 6 chars (checksum + carrage return)
-	Sentence=Sentence[:-6]
-
-	# Remove the three first chars ("#A:")
-	Sentence=Sentence[3:]
-
-	ICAO,Sentence = subCutString(Sentence) 	# Extracting the ICAO singal
-	Flags,Sentence = subCutString(Sentence)	# Etc ...
-	Call,Sentence = subCutString(Sentence)
-	Squak,Sentence = subCutString(Sentence)
-	Lat,Sentence = subCutString(Sentence)
-	Long,Sentence = subCutString(Sentence)
-	Alt,Sentence = subCutString(Sentence)
-	Track,Sentence = subCutString(Sentence)
-	VelH,Sentence = subCutString(Sentence)
-	VelV,Sentence = subCutString(Sentence)
-	SigS,Sentence = subCutString(Sentence)
-	SigQ,Sentence = subCutString(Sentence)
-	FPS,Sentence = subCutString(Sentence)
-
-	#print "ICAO: " + ICAO
-	#print "Flags: " + Flags
-	#print "Call: " + Call
-	#print "SQUAK: " + Squak
-	#print "Lat: " + Lat
-	#print "Long: " + Long
-	#print "Alt: " + Alt
-	#print "Track: " + Track
-	#print "VelH: " + VelH
-	#print "VelV: " + VelV
-	#print "SigS: " + SigS
-	#print "SigQ: " + SigQ
-	#print "FPS: " + FPS
-
-	#MyLat = 59.18712		# My position
-	#MyLong = 17.65699	# My position
-	#MyAlt = 0		# My position
-	Distance = 0.0
-	Bearing = 0.0
-
-	#print "MyLat: " + str(MyLat) + " MyLong: " + str(MyLong) + " Lat: " + str(Lat) + " Long: " + str(Long)
-	Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
-
-	Whatever = 0
-	tempCall = "" 
-	deltaNorth = 0.0
-	deltaEast = 0.0
-	deltaAlt = 0.0
-	Empty = ""
-
-	try:
-		# Check if the numbers are valid
-		float(Alt)
-		float(VelH)
-		float(VelV)
-
-	except:	
-		# Negative, the numbers were not valid
-		#subWrite2Log("Float failed ADSB, Alt: " + Alt + " VelH: " + VelH + " VelV: " + VelV)
-		Whatever = 1
-
-	# Calculating the altitude difference
-	#deltaAlt = ((float(Alt) / 3.2808399) - float(MyAlt))
-
-	#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
-
-	#if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or Call == MyID or str(VelH) == Empty or str(VelV) == Empty or deltaAlt > MaxDeltaAlt or deltaAlt < MaxDeltaAlt:
-	if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or ICAO == MyID or str(VelH) == Empty or str(VelV) == Empty:
-		# Distance and bearing is zero, values are not valid OR the plane is too far away OR its my own signal OR VelV and VelH are empty: skip further handling
-		Whatever = 1
-
-		if (cos(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange or (sin(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange:
-			#print "Far far away ..." + str(Distance/ZoomFactor) + " : " + str(MaxRange) + " SigS: " + str(SigS)
-			Whatever = Whatever
-		return " ", " ", " "
-
-	else:
-		# Numbers are valid, lets compile the string
-
-		# Calculating the horisontal distance to the target
-		deltaNorth = (cos(radians(Bearing))*(Distance)/ZoomFactor)
-
-		# Calculating the horisontal distance to the target
-		deltaEast = (sin(radians(Bearing))*(Distance)//ZoomFactor)
-
-		# Calculating the altitude difference
-		deltaAlt = ((float(Alt) / 3.2808399) - MyAlt)
-
-		# Calculating timestamps in milliseconds
-		intHrs = int(MyTime[:-4])
-		intMin = int(MyTime[2:-2])
-		intSec = int(MyTime[4:])
-		TimeStamp = intHrs * 60 * 60 * 1000 + intMin * 60 * 1000 + intSec * 1000
-		#print str(TimeStamp)
-
-		#print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
-		#subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
-
-		if Call != "":
-			# The callsign to the butterfly display shall be in hexa decimal. 
-			# Converting to hexa decimal and keep the last 6 characters
-			tempCall = Call.encode("hex")
-			tempCall = tempCall[-6:]
-		else:
-			# The callsign are not present, give it a dummy identity
-			tempCall = "ABAAAA"
-		#print "VelH: " + str(VelH) + " VelV: " + str(VelV)
-		strVelH = str(round(int(float(VelH)*0.00508)))
-		strVelV = str(round(int(float(VelV)/60)))
-
-		#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
-		#subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
-
-
-		# PFLAA-message
-		part1 =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + ICAO + "," + Track + ",0.0," + "20" + "," + strVelH + "," + strVelV + ",8"
-		#part1 = " "
-		#listPlanes.append("PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + tempCall + "," + Track + ",0.0," + "20" + "," + str(round(float(VelV)*0.00508)) + ",8")
-
-		# PAAVD,AT,A - Absolute ADS-B Target Data: str(Track)
-		#$PAAVD,AT,A,<ModeSAddress>,<FlightID>,<EmitterCategory>,<ModeASquawkCode>,<Latitude>,<Longitude>,<AltitudeWGS84>,<AltitudeQNE>,<Track>,<GroundSpeed>,<ClimbRateWGS84>,<ClimbRateBaro>,<SignalStrength>, <PositionTimestamp>,<VelocityTimestamp>,<ModeSTimestamp>,<ADSBVersionNumber>,<QualityIndicator>
-		#part2 = "$PAAVD,AT,A," + ICAO + "," +   Call + "," + "20" + "," + "7000" + "," + str(Lat) + "," + str(Long) + "," + str(Alt) + "," + str(Alt) + "," + "359.3" + "," + str(VelH) + "," + str(round(float(VelV)*0.00508)) + "," + str(round(float(VelV)*0.00508)) + "," + str(SigS) + "," + str(TimeStamp) + "," + str(TimeStamp) + "," + str(TimeStamp) + "," + "2"  + "," + "7A7C" #str(SigQ)
-		part2 = " "
-		#return part1,part2
-
-		# Data of the closest ADS-B transmitter
-		if intPFLAUDist == 0 or Distance < intPFLAUDist:
-			strPFLAUID = ICAO
-			intPFLAUDist = Distance
-			strPFLAUMessage = "1,1,1,0," + str(Bearing) + ",0," + str(int(round(deltaAlt))) + "," + str(int(round(Distance)*1000))
-
-		return part1,part2,ICAO
 
 class clAircraftMessage(object):
     """
@@ -566,15 +561,9 @@ def subGetNMEA():
 	global tmpNMEA
 
 	# # No Simulation, get the real deal
-	(count, slask) = pi.bb_serial_read(intComPinFLARM)
+	(count, slask) = pi.bb_serial_read(intComPinFLARM_RX)
 	if count > 0:
-		data = slask.decode()
-
-	# try:
-	#     data = slask.decode(encoding="utf-8", errors="strict")
-	#     data = slask.decode('ascii')
-	# except
-	#     data = ''
+		data = slask.decode("ascii", "ignore")
 
 	# Simulating position Sodertalje
 	#print("Simulating position: Sodertalje")
@@ -613,7 +602,7 @@ def subGetNMEA():
 
 			# Time to check the checksum
 			if chkSumLine == chkCalculated:
-				# Bang on! Lets att the line to the list
+				# Bang on! Lets add the line to the list
 				listNMEA.append(newLine)
 			else:
 				print("Checksum failed, found: " + chkSumLine + " should be: " + chkCalculated + " line:" + newLine)
@@ -625,7 +614,6 @@ def subGetNMEA():
 	# If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
 
 		tmpNMEA = newData	#This is the 'leftover string'
-
 class clNMEAMessage(object):
     """
 	Time
@@ -692,13 +680,8 @@ def subExtractNMEAInfo(Sentence):
 
 	skipGeo = 0
 
-	# af01 = clAircraftMessage("#A:4CA948,300,,2122,52.99750,13.76526,37000,169,442,0,814,72,3,,6F1C\r\n",59.5673684, 010.4793243)
-	
-	# 
-	
-	
 	strNMEASplit = clNMEAMessage(Sentence)
-	print(strNMEASplit.Date)
+	#print(strNMEASplit.Date)
 
 	Sentence=Sentence[:-6]
 
@@ -712,49 +695,39 @@ def subExtractNMEAInfo(Sentence):
 	Track = strNMEASplit.Track
 	Date = strNMEASplit.Date
 
-
-	#print("Date: " + strNMEASplit.Date + " , time: " + strNMEASplit.Time)
-
-
-	# Remove the last 6 chars (checksum + carrage return)
-	# Sentence=Sentence[:-6]
-
-	# whatEver,Sentence = subCutString(Sentence)             # Dummy only
-	# Time,Sentence = subCutString(Sentence)                # Extracting the time
-	# RecieverWarning,Sentence = subCutString(Sentence)      # Etc ...
-	# Lat,Sentence = subCutString(Sentence)
-	# East,Sentence = subCutString(Sentence)
-	# Long,Sentence = subCutString(Sentence)
-	# North,Sentence = subCutString(Sentence)
-	# VelH,Sentence = subCutString(Sentence)
-	# Track,Sentence = subCutString(Sentence)
-	# Date,Sentence = subCutString(Sentence)
-
-
 	#subWrite2Log("NMEA Time: " + Time + " , RW: " + RecieverWarning + " , lat: " + Lat +  " , long: " + Long + " , VelH: " + VelH + " , track: " + Track + " , date: " + Date)
 
 	try:
 		# Check if the variables are valid, if not the function is not excecuted
-		x = float(Lat)
-		x = float(Long)
+		x = float(strNMEASplit.Lat)
+		x = float(strNMEASplit.Long)
 
 
-		if (len(Lat) > 0 or len(Long) > 0):
+		if (len(strNMEASplit.Lat) > 0 or len(strNMEASplit.Long) > 0):
+
 			# Lat = DDMM.mmmmm shall be recalculated into DD.ddddddd
-			LatDegrees = Lat[:2]
-			LatMinutes = Lat[-8:]
+			if strNMEASplit.N_or_S == "S":				# Is this cricket? Scruteny please!
+				LatDegrees = strNMEASplit.Lat[:2] * -1
+			else:
+				LatDegrees = strNMEASplit.Lat[:2]
+
+			LatMinutes = strNMEASplit.Lat[-8:]
 			MyLat = float(LatDegrees) + (float(LatMinutes)/60)
 
 			# Long = DDDMM.mmmmm shall be recalculated into DD.ddddddd
-			LongDegrees = Long[:3]
-			LongMinutes = Long[-8:]
+			if strNMEASplit.E_or_W == "W":				# Is this cricket? Scruteny please!
+				LongDegrees = strNMEASplit.Long[:3]
+			else:
+				LongDegrees = strNMEASplit.Long[:3]
+
+			LongMinutes = strNMEASplit.Long[-8:]
 			MyLong = float(LongDegrees) + (float(LongMinutes)/60)
 
-			MySpeed = VelH
+			MySpeed = strNMEASplit.VelH
 			#MyTrack = Track
 
-			MyTime = Time[:-3]
-			MyDate = Date
+			MyTime = strNMEASplit.Time[:-3]
+			MyDate = strNMEASplit.Date
 			#print str(MyTime)
 			#print str(MyTime)[:-4]		# Hours
 			#print str(MyTime)[2:-2]	# Minutes
@@ -787,7 +760,6 @@ def subStoreFile(infile,outfile):
 
 	destination.close
 	source.close
-
 
 def subGetFLARMID(Sentence):
 	# $PFLAA,0,21,11,11,2,DDE605,0,,0,-0.1,1*32
@@ -836,32 +808,38 @@ while go == 1:
 		GPIO.setup(16, GPIO.IN)
 		GPIO.setup(19, GPIO.IN)
 
-		# Getting the identity of the FLARM from the identity text file
-		f = open(myIDFile, 'r')
-		f.readlines
-		for line in f:
-			if line[:1]!="#" and len(line) > 0:
-				MyID = line[:6]
-				subWrite2Log("My ID: " + MyID)
-				print("My ID: " + MyID)
-		f.close
+		intSpeed, MyID = subGetFLARM_ID(intComPinFLARM_TX,intComPinFLARM_RX)
+
+		if len(MyID) > 3:
+			# Communication with the FLARM has been established, correcting the comspeed
+			intComSpeedFLARM = intSpeed
+		else:
+			# No identity was detected, getting the identity of the FLARM from the identity text file
+			f = open(myIDFile, 'r')
+			f.readlines
+			for line in f:
+				if line[:1]!="#" and len(line) > 0:
+					MyID = line[:6]
+					subWrite2Log("My ID: " + MyID)
+					print("My ID: " + MyID)
+			f.close
 
 		# Opening the software managed serial port
 		try:
 			pi = pigpio.pi()
-			pi.set_mode(intComPinFLARM, pigpio.INPUT)
+			pi.set_mode(intComPinFLARM_RX, pigpio.INPUT)
 			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
-			pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
+			pi.bb_serial_read_open(intComPinFLARM_RX, intComSpeedFLARM, 8)
 
 		except:
 			# The software serial port is already opened, closing the port and opening it again
-			pi.bb_serial_read_close(intComPinFLARM)
+			pi.bb_serial_read_close(intComPinFLARM_RX)
 			pi.stop()
 
 			pi = pigpio.pi()
-			pi.set_mode(intComPinFLARM, pigpio.INPUT)
+			pi.set_mode(intComPinFLARM_RX, pigpio.INPUT)
 			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
-			pi.bb_serial_read_open(intComPinFLARM, intComSpeedFLARM, 8)
+			pi.bb_serial_read_open(intComPinFLARM_RX, intComSpeedFLARM, 8)
 
 		tmpNMEA = ""
 
@@ -1002,5 +980,5 @@ while go == 1:
 		listADSBID.clear()
 
 # Closing the software serial port when exiting
-b_serial_read_close(intComPinFLARM)
+b_serial_read_close(intComPinFLARM_RX)
 pi.stop() 

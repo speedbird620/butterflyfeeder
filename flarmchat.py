@@ -93,17 +93,20 @@ class clRADIOIDMessage(object):
 def subGetFLARM_ID(TX,RX):
 
     # This sub is supposed to identify the FLARM identity and the com speed
-
     GiveUp = 0
+
+    # The usual suspect com speed
     ComSpeed = [4800, 9600, 19200, 28800, 38400, 56000, 56000]
     ComSpeed_Pointer = 0
 
     while GiveUp == 0:
 
         if ComSpeed_Pointer > 4:
+            # No joy, all of the com speeds has been tested
             GiveUp = 1
 
         try:
+            # Opening the software serial port
             pi = pigpio.pi()
             pi.set_mode(RX, pigpio.INPUT)
             pi.set_mode(TX, pigpio.OUTPUT)
@@ -122,7 +125,7 @@ def subGetFLARM_ID(TX,RX):
             print("Testing comspeed " + str(ComSpeed[ComSpeed_Pointer]))
 
 
-        #strRequestID = "$PFLAC,R,RADIOID*56\r\n"
+        # The magic word for obtaining the ID from the flarm
         strRequestID = "$PFLAC,R,RADIOID\r\n"
         
         # Transmit the data with "bit banging"
@@ -135,23 +138,17 @@ def subGetFLARM_ID(TX,RX):
             pass
         pi.wave_delete(wid)
 
+        # Waiting for the response
         time.sleep(2)
 
+        # Reading the response
         data = ""
         (count, slask) = pi.bb_serial_read(RX)
         if count > 0:
+            # Translating the bit array into a string
             data = slask.decode("ascii", "ignore")
 
         while len(data) > 0 and not data.find("\r\n") == -1:
-
-            # Entering this while, the variable newData is a long string with several embedded 
-            # carrage returns. This part of the program is dividing the string into a list of 
-            # NMEA senteces. The tricky part is that the information from the serial port might
-            # be read during a trasmission. This means that the last part of the NMEA-sentence 
-            # might be missing. Therefore if the last sentence of the string is not ended with 
-            # a carrage return, that part will be saved in a variable (tmpNMEA) and will be 
-            # added in the beggning of the next.
-            # print(newData.find("\r\n"))
 
             if data.find("\r\n") > -1:
             # Yes, there is a carrage return in the sentence
@@ -159,6 +156,7 @@ def subGetFLARM_ID(TX,RX):
                 # In case there are any characters in front of the first $, these will be removed.
                 data = data[(data.find("$")):]
 
+                # Extracting the line
                 newLine = data[:(data.find("\r\n"))]
 
                 # Extract the provided checksum and calculate the cecksum as reference
@@ -168,15 +166,15 @@ def subGetFLARM_ID(TX,RX):
                 if chkSumLine == chkCalculated:
                     # The checksum is correct
 
-                    # Is the line the we are looking for?
+                    # Is this the line the we are looking for? PFLAC is the message containing the FLARM-identity.
                     if newLine[:6] == "$PFLAC":
-                    #if newLine[:6] == "$GPRMC":
 
+                        # Extracting the information within the string
                         returnLine = clRADIOIDMessage(newLine)
                     
                         print("Com speed detected: " + str(ComSpeed[ComSpeed_Pointer]))
                         print("ID: " + returnLine.Identity)
-                        return ComSpeed[ComSpeed_Pointer]
+                        return ComSpeed[ComSpeed_Pointer], returnLine.Identity # Returning the comspeed and the identity of the FLARM
                         GiveUp = 1
 
                 else:
@@ -195,7 +193,7 @@ while go == 1:
     if init == 1:
         init = 0
 
-        intComSpeedFLARM = subGetFLARM_ID(intComPinFLARM_TX,intComPinFLARM_RX)
+        intComSpeedFLARM, MyID = subGetFLARM_ID(intComPinFLARM_TX,intComPinFLARM_RX)
 
         try:
             pi = pigpio.pi()
