@@ -109,19 +109,19 @@ class clRADIOIDMessage(object):
 def subGetFLARM_ID(TX,RX):
 	# This sub is supposed to identify the FLARM identity and the com speed
 
-	GiveUp = 0
+	stopWhile = 0
 	strBlank = ""
 
 	# The usual suspect com speed
 	ComSpeed = [38400, 9600, 19200, 28800, 4800, 56000, 56000]
 	ComSpeed_Pointer = 0
 
-	while GiveUp == 0:
+	while stopWhile == 0:
 
 		if ComSpeed_Pointer > 4:
 
 			# No joy, all of the com speeds has been tested
-			GiveUp = 1
+			stopWhile = 1
 
 		try:
 			# Opening the software serial port
@@ -194,7 +194,7 @@ def subGetFLARM_ID(TX,RX):
 						print("ID: " + returnLine.Identity)
 						strBlank = returnLine.Identity
 						return ComSpeed[ComSpeed_Pointer], returnLine.Identity # Returning the comspeed and the identity of the FLARM
-						GiveUp = 1
+						stopWhile = 1
 
 				else:
 					print("Checksum failed, found: " + chkSumLine + " should be: " + chkCalculated + " line:" + newLine)
@@ -206,7 +206,7 @@ def subGetFLARM_ID(TX,RX):
 		pi.bb_serial_read_close(RX)
 		pi.stop() 
 	
-	if GiveUp == 1 and len(strBlank) == 0:
+	if stopWhile == 1 and len(strBlank) == 0:
 		print("No communication was detected, keeping the default values")
 		return 0, strBlank
 
@@ -302,30 +302,31 @@ class clAircraftMessage(object):
     FPS     Number of raw MODE-S frames received from aircraft during last second 5
     RES     Reserved for future use
     CRC     CRC16 (described in CRC section) 2D3E
+	#A:4CA948,300,,2122,52.99750,13.76526,37000,169,442,0,814,72,3,,6F1C\r\n"
     """
     def __init__(self, sentance, diffLat=0, diffLong=0):
         import time
 
         (self.format,
-         self.ICAO ,
-         self.FLAGS,
-         self.CALL ,
-         self.SQ   ,
-         self.LAT  ,
-         self.LON  ,
-         self.ALTfeet,
-         self.TRACK,
-         self.VELH ,
-         self.VELV ,
-         self.SIGS ,
-         self.SIGQ ,
-         self.FPS  ,
-         self.RES  ,
+         self.ICAO,
+         self.Flags,
+         self.Call,
+         self.Squak,
+         self.Lat,
+         self.Long,
+         self.Alt,
+         self.Track,
+         self.VelH,
+         self.VelV ,
+         self.SigS,
+         self.SigQ,
+         self.FPS,
+         self.RES,
          self.CRC
         ) = sentance.replace("\r\n","").replace(":",",").split(",")
         # Then adding some info and calulations:
-        self.AltitudeGPSUnit = "M"
-        self.AltitudeGPS = float(self.ALTfeet) * 0.3048 # According to Google..
+        #self.AltitudeGPSUnit = "M"
+        #self.AltitudeGPS = float(self.Alt) * 0.3048 # According to Google..
         
         self.Distance =0
         self.Bearing = 0
@@ -341,59 +342,14 @@ def subExtractADSBInfo(Sentence):
 	global strPFLAUID
 	global intPFLAUDist
 
-	#subWrite2Log(Sentence)
-
 	# Recieves the MAVLink sentence. Time to assemble the stirng and make some sense of it
-	# #A:78149E,,,,,,,61,531,64,673,48,0,,B674
-	af01 = clAircraftMessage("#A:4CA948,300,,2122,52.99750,13.76526,37000,169,442,0,814,72,3,,6F1C\r\n",59.5673684, 010.4793243)
-	#print(af01.ICAO + " Dist: " + str(af01.Distance) + " Bearing: " + str(af01.Bearing))
+	strADSBSplit = clAircraftMessage(Sentence)
 
-	af02 = clAircraftMessage("#A:424313,,,2362,52.43431,14.84535,37000,65,456,0,806,61,0,,6843\r\n")
-	#print(af02.ICAO)
-
-
-	# Remove the last 6 chars (checksum + carrage return)
-	Sentence=Sentence[:-6]
-
-	# Remove the three first chars ("#A:")
-	Sentence=Sentence[3:]
-
-	ICAO,Sentence = subCutString(Sentence) 	# Extracting the ICAO singal
-	Flags,Sentence = subCutString(Sentence)	# Etc ...
-	Call,Sentence = subCutString(Sentence)
-	Squak,Sentence = subCutString(Sentence)
-	Lat,Sentence = subCutString(Sentence)
-	Long,Sentence = subCutString(Sentence)
-	Alt,Sentence = subCutString(Sentence)
-	Track,Sentence = subCutString(Sentence)
-	VelH,Sentence = subCutString(Sentence)
-	VelV,Sentence = subCutString(Sentence)
-	SigS,Sentence = subCutString(Sentence)
-	SigQ,Sentence = subCutString(Sentence)
-	FPS,Sentence = subCutString(Sentence)
-
-	#print "ICAO: " + ICAO
-	#print "Flags: " + Flags
-	#print "Call: " + Call
-	#print "SQUAK: " + Squak
-	#print "Lat: " + Lat
-	#print "Long: " + Long
-	#print "Alt: " + Alt
-	#print "Track: " + Track
-	#print "VelH: " + VelH
-	#print "VelV: " + VelV
-	#print "SigS: " + SigS
-	#print "SigQ: " + SigQ
-	#print "FPS: " + FPS
-
-	#MyLat = 59.18712		# My position
-	#MyLong = 17.65699	# My position
-	#MyAlt = 0		# My position
 	Distance = 0.0
 	Bearing = 0.0
 
 	#print "MyLat: " + str(MyLat) + " MyLong: " + str(MyLong) + " Lat: " + str(Lat) + " Long: " + str(Long)
-	Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
+	Distance,Bearing = subGeoCalc(MyLat,MyLong,strADSBSplit.Lat,strADSBSplit.Long)
 
 	Whatever = 0
 	tempCall = "" 
@@ -404,9 +360,9 @@ def subExtractADSBInfo(Sentence):
 
 	try:
 		# Check if the numbers are valid
-		float(Alt)
-		float(VelH)
-		float(VelV)
+		float(strADSBSplit.Alt)
+		float(strADSBSplit.VelH)
+		float(strADSBSplit.VelV)
 
 	except:	
 		# Negative, the numbers were not valid
@@ -419,12 +375,12 @@ def subExtractADSBInfo(Sentence):
 	#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
 
 	#if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or Call == MyID or str(VelH) == Empty or str(VelV) == Empty or deltaAlt > MaxDeltaAlt or deltaAlt < MaxDeltaAlt:
-	if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or ICAO == MyID or str(VelH) == Empty or str(VelV) == Empty:
+	if Distance == 0 or Bearing == 0 or (Distance/ZoomFactor) > MaxRange or strADSBSplit.ICAO == MyID or str(strADSBSplit.VelH) == Empty or str(strADSBSplit.VelV) == Empty:
 		# Distance and bearing is zero, values are not valid OR the plane is too far away OR its my own signal OR VelV and VelH are empty: skip further handling
 		Whatever = 1
 
 		if (cos(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange or (sin(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange:
-			print("Far far away ..." + str(Distance/ZoomFactor) + " : " + str(MaxRange) + " SigS: " + str(SigS))
+			print("Far far away ..." + str(Distance/ZoomFactor) + " : " + str(MaxRange) + " SigS: " + str(strADSBSplit.SigS))
 			Whatever = Whatever
 		return " ", " ", " "
 
@@ -438,7 +394,7 @@ def subExtractADSBInfo(Sentence):
 		deltaEast = (sin(radians(Bearing))*(Distance)//ZoomFactor)
 
 		# Calculating the altitude difference
-		deltaAlt = ((float(Alt) / 3.2808399) - MyAlt)
+		deltaAlt = ((float(strADSBSplit.Alt) / 3.2808399) - MyAlt)
 
 		# Calculating timestamps in milliseconds
 		intHrs = int(MyTime[:-4])
@@ -450,28 +406,28 @@ def subExtractADSBInfo(Sentence):
 		#print "dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + Call + " Squak: " + Squak
 		#subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
 
-		if Call != "":
+		if strADSBSplit.Call != "":
 			# The callsign to the butterfly display shall be in hexa decimal. 
 			# Converting to hexa decimal and keep the last 6 characters
 
 			#tempCall = Call.encode("hex")		# Python 2
 
-			tempCall = binascii.b2a_hex(bytes(Call, 'utf-8'))	# Python 3
+			tempCall = binascii.b2a_hex(bytes(strADSBSplit.Call, 'utf-8'))	# Python 3
 
 			tempCall = tempCall[-6:]
 		else:
 			# The callsign are not present, give it a dummy identity
 			tempCall = "ABAAAA"
 		#print "VelH: " + str(VelH) + " VelV: " + str(VelV)
-		strVelH = str(round(int(float(VelH)*0.00508)))
-		strVelV = str(round(int(float(VelV)/60)))
+		strVelH = str(round(int(float(strADSBSplit.VelH)*0.00508)))
+		strVelV = str(round(int(float(strADSBSplit.VelV)/60)))
 
 		#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
 		#subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
 
 
 		# PFLAA-message
-		part1 =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + ICAO + "," + Track + ",0.0," + "20" + "," + strVelH + "," + strVelV + ",8"
+		part1 =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + strADSBSplit.ICAO + "," + strADSBSplit.Track + ",0.0," + "20" + "," + strVelH + "," + strVelV + ",8"
 		#part1 = " "
 		#listPlanes.append("PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + tempCall + "," + Track + ",0.0," + "20" + "," + str(round(float(VelV)*0.00508)) + ",8")
 
@@ -483,11 +439,11 @@ def subExtractADSBInfo(Sentence):
 
 		# Data of the closest ADS-B transmitter
 		if intPFLAUDist == 0 or Distance < intPFLAUDist:
-			strPFLAUID = ICAO
+			strPFLAUID = strADSBSplit.ICAO
 			intPFLAUDist = Distance
 			strPFLAUMessage = "1,1,1,0," + str(Bearing) + ",0," + str(int(round(deltaAlt))) + "," + str(int(round(Distance)*1000))
 
-		return part1,part2,ICAO
+		return part1,part2,strADSBSplit.ICAO
 
 def subSendSentence(sentence):
 	# Recives a sentence, adds its checsum and transmits it on the serial port
@@ -575,7 +531,9 @@ def subGetNMEA():
 
 	# If a string was recieved, lets add it to the leftover string from the last sentence
 	if len(data) > 0:
+			#newData = tmpNMEA + data + "$PFLAA,0,21,11,11,2,DDE605,0,,0,-0.1,1*32\r\n"
 			newData = tmpNMEA + data
+
 			tmpNMEA = ""
 
 	while len(newData) > 0 and not newData.find("\r\n") == -1:
@@ -685,17 +643,7 @@ def subExtractNMEAInfo(Sentence):
 
 	Sentence=Sentence[:-6]
 
-	Time = strNMEASplit.Time
-	RecieverWarning = strNMEASplit.RecieverWarning
-	Lat = strNMEASplit.Lat
-	East = strNMEASplit.E_or_W
-	Long = strNMEASplit.Long
-	North = strNMEASplit.N_or_S
-	VelH = strNMEASplit.VelH
-	Track = strNMEASplit.Track
-	Date = strNMEASplit.Date
-
-	#subWrite2Log("NMEA Time: " + Time + " , RW: " + RecieverWarning + " , lat: " + Lat +  " , long: " + Long + " , VelH: " + VelH + " , track: " + Track + " , date: " + Date)
+	#subWrite2Log("NMEA Time: " + strNMEASplit.Time + " , RW: " + strNMEASplit.RecieverWarning + " , lat: " + strNMEASplit.Lat +  " , long: " + strNMEASplit.Long + " , VelH: " + strNMEASplit.VelH + " , track: " + strNMEASplit.Track + " , date: " + strNMEASplit.Date)
 
 	try:
 		# Check if the variables are valid, if not the function is not excecuted
@@ -760,18 +708,54 @@ def subStoreFile(infile,outfile):
 
 	destination.close
 	source.close
+class clPFLAAMessage(object):
+	"""
+	Time
+	RecieverWarning
+	Lat
+	East
+	Long
+	North
+	VelH
+	Track
+	Date
+	"""
+	#def
+	def __init__(self, sentance):
+		import time
 
-def subGetFLARMID(Sentence):
-	# $PFLAA,0,21,11,11,2,DDE605,0,,0,-0.1,1*32
+		strBlank = ""
 
-	Sentence,SentenceX = subCutString(Sentence)
-	SentenceX,Sentence = subCutString(SentenceX)
-	Sentence,SentenceX = subCutString(Sentence)
-	SentenceX,Sentence = subCutString(SentenceX)
-	Sentence,SentenceX = subCutString(Sentence)
-	SentenceX,Sentence = subCutString(SentenceX)
-	#print Sentence[:6]
-	return Sentence[:6]
+		# $PFLAA,0,21,11,11,2,DDE605,0,,0,-0.1,1*32
+		# PFLAA: $PFLAA
+		# AlarmLevel: 0
+		# RelativeNorth: 21
+		# RelativeEast: 11
+		# RelativeVertical: 11
+		# IDType: 2
+		# ID: DDE605
+		# Track: 0
+		# TurnRate: 
+		# GroundSpeed: 0
+		# ClimbRate: -0.1
+		# Type: 1
+		# CRC: *32
+
+
+		(self.PFLAA, 
+		self.AlarmLevel, 
+		self.RelativeNorth, 
+		self.RelativeEast, 
+		self.RelativeVertical, 
+		self.IDType, 
+		self.ID, 
+		self.Track, 
+		self.TurnRate, 
+		self.GroundSpeed, 
+		self.ClimbRate, 
+		self.Type, 
+		self.CRC
+		) = sentance.replace("\r\n","").replace("*",",").split(",")
 
 def subGetPFLAU(Sentence):
 	# "$PFLAU,1,1,1,1,0,,0,,,*4E"
@@ -909,10 +893,10 @@ while go == 1:
 				NoOfFlarmContacts = NoOfFlarmContacts + 1
 
 				# Extracting the identity if the other tranciever from the message
-				Id = subGetFLARMID(NMEAline)					# Non-testing
-				#Id = subGetFLARMID("$PFLAA,0,21,11,11,2,DDE605,0,,0,-0.1,1*32") # Testing
+				strPFLAASplit = clPFLAAMessage(NMEAline)
+
 				# Add the identity to a list, to be used in the future
-				listFLARMID.append(Id)
+				listFLARMID.append(strPFLAASplit.ID)
 
 				# Sending the message to the COM-port
 				subSendSentence(NMEAline)
@@ -935,8 +919,7 @@ while go == 1:
 			else:
 				# All of the other messages
 				subSendSentence(NMEAline)
-
-
+			
 		NoOfADSBContacts = count + 1 	#Addint one since -1 can be considered as 0
 
 		while count > -1:
