@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+
+# Butterfly feeder - the code
+# The manual: https://bit.ly/2pCb3GA
+#
+# Revision 0.1, first released version - 20200106/mik
+#
+# avionics@skyracer.net
+
 import os
 import sys
 import time
@@ -54,10 +62,6 @@ MaxRange = 60000 # Meters
 MaxDeltaAlt = 20000
 
 tmpNMEA = ""
-
-strPFLAUMessage = ""
-strPFLAUID = ""
-intPFLAUDist = 0
 
 # Properties of the com port
 #serADSB = serial.Serial ("/dev/ttyS0")  # Open named port
@@ -335,12 +339,7 @@ class clAircraftMessage(object):
             #Distance,Bearing = subGeoCalc(MyLat,MyLong,Lat,Long)
             self.Distance,self.Bearing = subGeoCalc(diffLat, diffLong,self.LAT,self.LON)
 
-def subExtractADSBInfo(Sentence):
-	global MyLat
-	global MyLong
-	global strPFLAUMessage
-	global strPFLAUID
-	global intPFLAUDist
+def subExtractADSBInfo(Sentence,MyLat,MyLong):
 
 	# Recieves the MAVLink sentence. Time to assemble the stirng and make some sense of it
 	strADSBSplit = clAircraftMessage(Sentence)
@@ -357,6 +356,8 @@ def subExtractADSBInfo(Sentence):
 	deltaEast = 0.0
 	deltaAlt = 0.0
 	Empty = ""
+	strPFLAAMsg = ""
+
 
 	try:
 		# Check if the numbers are valid
@@ -382,7 +383,6 @@ def subExtractADSBInfo(Sentence):
 		if (cos(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange or (sin(radians(Bearing))*(Distance)/ZoomFactor) > MaxRange:
 			print("Far far away ..." + str(Distance/ZoomFactor) + " : " + str(MaxRange) + " SigS: " + str(strADSBSplit.SigS))
 			Whatever = Whatever
-		return " ", " ", " "
 
 	else:
 		# Numbers are valid, lets compile the string
@@ -422,28 +422,11 @@ def subExtractADSBInfo(Sentence):
 		strVelH = str(round(int(float(strADSBSplit.VelH)*0.00508)))
 		strVelV = str(round(int(float(strADSBSplit.VelV)/60)))
 
-		#print "ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS
-		#subWrite2Log("ADSB ICAO: " + ICAO + " Flags: " + Flags + "Call: " + Call + " tempCall: " + tempCall + " Squak: " + Squak + " Lat: " + Lat + " Long: " + Long + " Alt: " + Alt + " Track: " + Track + " VelH: " + VelH + " VelV: " + VelV + " SigS: " + SigS + " SigQ: " + SigQ + "FPS: " + FPS)
-
-
 		# PFLAA-message
-		part1 =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + strADSBSplit.ICAO + "," + strADSBSplit.Track + ",0.0," + "20" + "," + strVelH + "," + strVelV + ",8"
-		#part1 = " "
+		strPFLAAMsg =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + strADSBSplit.ICAO + "," + strADSBSplit.Track + ",0.0," + "20" + "," + strVelH + "," + strVelV + ",8"
 		#listPlanes.append("PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + tempCall + "," + Track + ",0.0," + "20" + "," + str(round(float(VelV)*0.00508)) + ",8")
-
-		# PAAVD,AT,A - Absolute ADS-B Target Data: str(Track)
-		#$PAAVD,AT,A,<ModeSAddress>,<FlightID>,<EmitterCategory>,<ModeASquawkCode>,<Latitude>,<Longitude>,<AltitudeWGS84>,<AltitudeQNE>,<Track>,<GroundSpeed>,<ClimbRateWGS84>,<ClimbRateBaro>,<SignalStrength>, <PositionTimestamp>,<VelocityTimestamp>,<ModeSTimestamp>,<ADSBVersionNumber>,<QualityIndicator>
-		#part2 = "$PAAVD,AT,A," + ICAO + "," +   Call + "," + "20" + "," + "7000" + "," + str(Lat) + "," + str(Long) + "," + str(Alt) + "," + str(Alt) + "," + "359.3" + "," + str(VelH) + "," + str(round(float(VelV)*0.00508)) + "," + str(round(float(VelV)*0.00508)) + "," + str(SigS) + "," + str(TimeStamp) + "," + str(TimeStamp) + "," + str(TimeStamp) + "," + "2"  + "," + "7A7C" #str(SigQ)
-		part2 = " "
-		#return part1,part2
-
-		# Data of the closest ADS-B transmitter
-		if intPFLAUDist == 0 or Distance < intPFLAUDist:
-			strPFLAUID = strADSBSplit.ICAO
-			intPFLAUDist = Distance
-			strPFLAUMessage = "1,1,1,0," + str(Bearing) + ",0," + str(int(round(deltaAlt))) + "," + str(int(round(Distance)*1000))
-
-		return part1,part2,strADSBSplit.ICAO
+	
+	return strPFLAAMsg,strADSBSplit.ICAO
 
 def subSendSentence(sentence):
 	# Recives a sentence, adds its checsum and transmits it on the serial port
@@ -507,14 +490,13 @@ def subCheckSum(sentence):
 	return strOriginal, strCalculated
 	# Returning the provided checksum (from the original message) and the calculated 
 
-def subGetNMEA():
+def subGetNMEA(tmpNMEA):
 	# This sub is reading a temporary text file and extracts the information
 
 	# Check if the file is complete
 	newData = ""
 	slask = ""
 	data = "xx"
-	global tmpNMEA
 
 	# # No Simulation, get the real deal
 	(count, slask) = pi.bb_serial_read(intComPinFLARM_RX)
@@ -522,8 +504,8 @@ def subGetNMEA():
 		data = slask.decode("ascii", "ignore")
 
 	# Simulating position Sodertalje
-	#print("Simulating position: Sodertalje")
-	#data = "IJKLMNOP40\r\n$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n$ABCDEFGH"
+	# print("Simulating position: Sodertalje")
+	# data = "IJKLMNOP40\r\n$PFLAU,0,1,1,1,0,,0,,,*4F\r\n$GPRMC,141328.00,A,5911.22440,N,01739.41460,E,0.031,342.13,050219,,,A*6E\r\n$PGRMZ,153,F,2*3D\r\n$GPGGA,141328.00,5911.2244,N,01739.4146,E,1,12,2.72,36.6,M,24.1,M,,*66\r\n$ABCDEFGH"
 
 	# Simulating position Billingehus
 	#print "Simulating position: Billingehus"
@@ -572,6 +554,9 @@ def subGetNMEA():
 	# If there are no more carrage returns in the string, it has to be a left over. Lets save it for the next time we check for new sentenses
 
 		tmpNMEA = newData	#This is the 'leftover string'
+
+	return tmpNMEA
+
 class clNMEAMessage(object):
     """
 	Time
@@ -630,9 +615,9 @@ class clNMEAMessage(object):
         #     self.Distance,self.Bearing = subGeoCalc(diffLat, diffLong,self.LAT,self.LON)
 
 def subExtractNMEAInfo(Sentence):
-	global MyLat
-	global MyLong
-	global MyTime
+	Lat = 0
+	Long = 0
+	Time = ""
 
 	# Recieves the NMEA sentence. Time to assemble the stirng and make some sense of it
 
@@ -660,7 +645,7 @@ def subExtractNMEAInfo(Sentence):
 				LatDegrees = strNMEASplit.Lat[:2]
 
 			LatMinutes = strNMEASplit.Lat[-8:]
-			MyLat = float(LatDegrees) + (float(LatMinutes)/60)
+			Lat = float(LatDegrees) + (float(LatMinutes)/60)
 
 			# Long = DDDMM.mmmmm shall be recalculated into DD.ddddddd
 			if strNMEASplit.E_or_W == "W":				# Is this cricket? Scruteny please!
@@ -669,13 +654,13 @@ def subExtractNMEAInfo(Sentence):
 				LongDegrees = strNMEASplit.Long[:3]
 
 			LongMinutes = strNMEASplit.Long[-8:]
-			MyLong = float(LongDegrees) + (float(LongMinutes)/60)
+			Long = float(LongDegrees) + (float(LongMinutes)/60)
 
 			MySpeed = strNMEASplit.VelH
 			#MyTrack = Track
 
-			MyTime = strNMEASplit.Time[:-3]
-			MyDate = strNMEASplit.Date
+			Time = strNMEASplit.Time[:-3]
+			Date = strNMEASplit.Date
 			#print str(MyTime)
 			#print str(MyTime)[:-4]		# Hours
 			#print str(MyTime)[2:-2]	# Minutes
@@ -694,6 +679,9 @@ def subExtractNMEAInfo(Sentence):
 
 	except:
 		jantar = 0
+
+	return 	Lat,Long,Time
+
 
 def subStoreFile(infile,outfile):
 
@@ -825,7 +813,7 @@ while go == 1:
 			pi.set_mode(intComPinBUTTERFLY, pigpio.OUTPUT)
 			pi.bb_serial_read_open(intComPinFLARM_RX, intComSpeedFLARM, 8)
 
-		tmpNMEA = ""
+		strNMEALeftOvers = ""
 
 	# Continous execution from here
 
@@ -840,11 +828,11 @@ while go == 1:
 	#if strADSB.startswith(b"#A"):
 	if str(strADSB).startswith("#A"):
 
-		# Exract information from the MAV-link protocol
+		# Exxract information from the MAV-link protocol
 		# strPart = PFLAA-message
 		# strPart2 = PAAVD-message
 		# Id = the ICAO-identity
-		strPart,strPart2,Id = subExtractADSBInfo(strADSB)
+		strPart,Id = subExtractADSBInfo(strADSB,MyLat,MyLong)
 
 		if len(strPart) > 5:
 			# If the string is longer than 5 chars it is considered valid
@@ -856,17 +844,6 @@ while go == 1:
 
 			# Add the identity to a list for later use
 			listADSBID.append(Id)
-
-
-		if len(strPart2) > 5:
-			# If the string is longer than 5 chars it is considered valid
-			# Start counting the planes in the list
-			count = count + 1
-
-			# Add the sentence to the list of ADSB sentences
-			listADSBSentences.append(strPart2)
-			listADSBID.append(Id)
-
 
 	# A "S"-sentence has arrived. It is sent once every 1 second and this is used to trigger some functions:  time to send information to the butterfly display
 	#if strADSB.startswith("#S"):
@@ -883,7 +860,7 @@ while go == 1:
 		NoOfFlarmContacts = 0
 
 		#Read the lastest NMEA-information
-		subGetNMEA()
+		strNMEALeftOvers = subGetNMEA(strNMEALeftOvers)
 
 		# Extract information from the NMEA-sentence
 		for NMEAline in listNMEA:
@@ -904,7 +881,7 @@ while go == 1:
 			elif NMEAline[:6] == "$GPRMC":
 				# GPRMC contains data such as time, long/lat, speed etc. This information needs to be extracted.
 				# Extracting the infromation from the GPRMC-message
-				subExtractNMEAInfo(NMEAline)
+				MyLat,MyLong,MyTime = subExtractNMEAInfo(NMEAline)
 
 				# Sending the message to the COM-port
 				subSendSentence(NMEAline)
@@ -955,9 +932,6 @@ while go == 1:
 		del listADSBSentences[:]
 		del listNMEA[:]
 		del listFLARMID[:]
-		strPFLAUMessage = ""
-		strPFLAUID = ""
-		intPFLAUDist = 0
 		count = -1
 		# Resetting the list of identeties heard the last scan
 		listADSBID.clear()
