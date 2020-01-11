@@ -1,9 +1,9 @@
 #!/bin/bash
 
-echo "Startar IO-driver"
+echo "Starting soft serial"
 sudo pigpiod
 
 sleep 5
 
-echo "Startar ADSB handler"
-#python /home/pi/bfeeder/bfeeder.py &
+echo "Starting the butterflyfeeder"
+#python /home/pi/butterflyfeeder/bfeeder.py &
