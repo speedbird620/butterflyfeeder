@@ -1,0 +1,65 @@
+Notes from making the image.
+
+1. Configure after first boot
+Task: enable SSH over IP and the serial port
+
+$ sudo raspi-config
+
+Choose 5, interface options
+  P2, SSH
+    Would you like the SSH server to be enabled?: YES
+
+Choose 5, interface options
+  P6, Serial
+    Would you like a login shell to be accessible over serial?: NO
+    Would you like the serial port hardware to be enabled?: YES
+
+2. Update the OS
+Task: check for update for the operating system
+
+$ sudo apt-get update
+
+$ sudo apt-get install
+
+3. Installing software
+Task: install the neccesary softwares
+
+3.1 Installing Git:
+$ sudo apt-get install git
+
+3.2 Installing the software serial:
+$ wget abyz.me.uk/rpi/pigpio/pigpio.zip
+
+Unpack the file
+$ unzip pigpio.zip
+
+Change directory
+$ cd PIGPIO
+
+Make the installer
+$ make
+
+Install the make
+$ sudo make install
+
+In case a error message like the below is shown, it has worked fine before ...
+
+Traceback (most recent call last):
+  File "setup.py", line 3, in <module>
+    from distutils.core import setup
+ModuleNotFoundError: No module named 'distutils.core'
+make: *** [Makefile:96: install] Error 1
+
+$ cd ..
+
+3.3 Install mics libraries for Python:
+$ sudo apt-get install python3-pip
+$ sudo apt-get install python3-serial
+$ sudo apt-get install python-pigpio python3-pigpio
+$ sudo pip3 install RPi.GPIO
+
+4 Download the application
+$ git clone https://github.com/speedbird620/butterflyfeeder.git
+
+
+
