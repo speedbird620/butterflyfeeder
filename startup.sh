@@ -6,4 +6,4 @@ sudo pigpiod
 sleep 5
 
 echo "Starting the butterflyfeeder"
-#python /home/pi/butterflyfeeder/bfeeder.py &
+#python3 /home/pi/butterflyfeeder/bfeeder.py &
