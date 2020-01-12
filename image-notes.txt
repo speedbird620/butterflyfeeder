@@ -61,5 +61,12 @@ $ sudo pip3 install RPi.GPIO
 4 Download the application
 $ git clone https://github.com/speedbird620/butterflyfeeder.git
 
-
+5 Configure autostart
+$ crontab -e
+  Select nano as editor
+    Add the following in the end:
+      @reboot sudo sh /home/pi/butterflyfeeder/startup.sh
+      
+6 Reboot
+$ sudo reboot now
 
