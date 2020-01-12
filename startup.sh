@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Please enter the following in crontab-e:
+# Please enter the following in the end of crontab-e:
 # @reboot sudo sh /home/pi/butterflyfeeder/startup.sh
 #
 
