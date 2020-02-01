@@ -117,7 +117,7 @@ def subGetFLARM_ID(TX,RX):
 	strBlank = ""
 
 	# The usual suspect com speed
-	ComSpeed = [38400, 9600, 19200, 28800, 4800, 56000, 56000]
+	ComSpeed = [38400, 9600, 19200, 28800, 4800, 57600, 57600]
 	ComSpeed_Pointer = 0
 
 	while stopWhile == 0:
@@ -166,10 +166,12 @@ def subGetFLARM_ID(TX,RX):
 		# Reading the response
 		data = ""
 		(count, slask) = pi.bb_serial_read(RX)
+
 		if count > 0:
 			# Translating the bit array into a string
 			data = slask.decode("ascii", "ignore")
-
+		print(data)
+		print(ComSpeed[ComSpeed_Pointer])
 		while len(data) > 0 and not data.find("\r\n") == -1:
 
 			if data.find("\r\n") > -1:
@@ -288,7 +290,6 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 
 	# Bearing and distance to the target
 	return int(round(Base*1000)),int(round(bearingN))
-
 class clAircraftMessage(object):
     """
     ICAO    ICAO number of aircraft (3 bytes) 3C65AC
@@ -461,6 +462,8 @@ def subSendSentence(sentence):
 
 def subCheckSum(sentence):
 
+	strCalculated = ""
+
 	# Saving the incoming checksum for reference
 	strOriginal = sentence[-2:]
 
@@ -556,7 +559,6 @@ def subGetNMEA(tmpNMEA):
 		tmpNMEA = newData	#This is the 'leftover string'
 
 	return tmpNMEA
-
 class clNMEAMessage(object):
     """
 	Time
@@ -681,7 +683,6 @@ def subExtractNMEAInfo(Sentence):
 		jantar = 0
 
 	return 	Lat,Long,Time
-
 
 def subStoreFile(infile,outfile):
 
@@ -849,6 +850,8 @@ while go == 1:
 	#if strADSB.startswith("#S"):
 	if str(strADSB).startswith("#S"):
 
+		MyTime = "000000"
+
 		# Clear screen
 		#print "----------o0o----------" # ("\033c")
 
@@ -882,6 +885,9 @@ while go == 1:
 				# GPRMC contains data such as time, long/lat, speed etc. This information needs to be extracted.
 				# Extracting the infromation from the GPRMC-message
 				MyLat,MyLong,MyTime = subExtractNMEAInfo(NMEAline)
+
+				if len(MyTime) < 1:
+					MyTime = "000000"
 
 				# Sending the message to the COM-port
 				subSendSentence(NMEAline)
