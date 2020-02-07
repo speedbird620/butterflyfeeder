@@ -1,9 +1,13 @@
 #!/bin/bash
+#
+# Please enter the following in the end of crontab-e:
+# @reboot sudo sh /home/pi/butterflyfeeder/startup.sh
+#
 
-echo "Startar IO-driver"
+echo "Starting soft serial"
 sudo pigpiod
 
 sleep 5
 
-echo "Startar ADSB handler"
-#python /home/pi/bfeeder/bfeeder.py &
+echo "Starting the butterflyfeeder"
+python3 /home/pi/butterflyfeeder/bfeeder.py &

@@ -943,5 +943,5 @@ while go == 1:
 		listADSBID.clear()
 
 # Closing the software serial port when exiting
-b_serial_read_close(intComPinFLARM_RX)
+pi.bb_serial_read_close(intComPinFLARM_RX)
 pi.stop() 
