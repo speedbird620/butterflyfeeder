@@ -42,6 +42,7 @@ För serieport:
 python -m pip install pyserial
 sudo apt-get install python3-serial
 sudo apt-get install pigpio
+sudo apt-get install python3-pigpio
 sudo pip3 install RPi.GPIO
 
 -----------------
