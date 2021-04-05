@@ -4,13 +4,14 @@
 # The manual: https://bit.ly/2pCb3GA
 #
 # Revision 0.1, first released version - 20200106/mik
-# Revision 0.2, added harware watchdog
+# Revision 0.2, added harware watchdog - 20210316/mik
+# Revision 0.3, removed confirmation of FLARM-ID in order to set comspeed - 20210405/mik
 #
 # avionics@skyracer.net
- 
-from machine import UART
-from machine import Pin
+
+from machine import UART, Pin, I2C
 import machine
+import ssd1306
 import ubinascii
 import time
 import math
@@ -19,12 +20,12 @@ import pyb
 Init = True
 listNMEA = []	    # List of NMEA-messages
 listADSB = []		# List of ADSB-messages
-listDisplay = []	# List of ADSB-messages
+listDisplay = []	# List of ADSB-messages for OLED-display
 
 x = 0
 MyLat = 0.0
 MyLong = 0.0
-ZoomFactor = 10
+ZoomFactor = 1
 MaxRange = 60000 # Meters
 MaxDeltaAlt = 20000
 MyID = ""
@@ -41,9 +42,27 @@ Butterfly_UART_No = 3
 FLARM_UART_No = 2
 ADSB_UART_No = 6
 
+#Butterfly_UART_No = 4
+#FLARM_UART_No = 6
+#ADSB_UART_No = 2
+
 pinWD_OUT = Pin('X6', Pin.OUT)
 pinPyReady = Pin('X5', Pin.OUT)
 WatchDogValue = False
+
+pinVCC = Pin('X10', Pin.OUT)
+pinGND = Pin('X9', Pin.OUT)
+
+pinVCC.high()
+pinGND.low()
+
+time.sleep(0.2)
+
+psda = machine.Pin('Y7', machine.Pin.OUT_PP)
+pscl = machine.Pin('Y8', machine.Pin.OUT_PP)
+
+i2c = machine.I2C(scl=pscl, sda=psda)
+oled = ssd1306.SSD1306_I2C(128, 64, i2c, 60)
 
 def subCheckSum(sentence):
 
@@ -78,7 +97,7 @@ def subCheckSum(sentence):
 		if len(strCalculated) == 1:
 			strCalculated = "0" + strCalculated
 
-			#print("chksum: " + strCalculated + " " + " sentence: " + sentence)
+		#print("chksum: " + strCalculated + " " + " sentence: " + sentence)
 
 	except:
 		whatever = True
@@ -299,6 +318,9 @@ def subExtractADSBInfo(Sentence,MyLat,MyLong,MyAlt):
 
 	#print(ADSBSplit.ICAO)
 
+	if len(ADSBSplit.ICAO) > 0 and len(ADSBSplit.Call) > 0:
+		WriteOLED(ADSBSplit.ICAO[-3:] + " = " + ADSBSplit.Call)
+
 	# Calculating the altitude difference
 	try:
 		# Quick and dirty, yes indeed. Sorry I cant get my head around why this fail once in 10 000 times ... if someone can explain why I ough this person a beer or a glass of wine. Ill have a Prosecco ... or two.
@@ -332,6 +354,37 @@ def subExtractADSBInfo(Sentence,MyLat,MyLong,MyAlt):
 		#listPlanes.append("PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(int(deltaAlt)) + ",1," + tempCall + "," + Track + ",0.0," + "20" + "," + str(round(float(VelV)*0.00508)) + ",8")
 	
 	return strPFLAAMsg,ADSBSplit.ICAO
+
+def WriteOLED(strOut):
+	# This sub is supposed to write info to the OLED display
+
+	Match = False
+
+	for row in listDisplay:
+		if strOut == row:
+			print(row + " " + strOut)
+			print(row)
+			Match = True
+
+	if not Match:
+
+		#Blanking the display
+		oled.fill(0)
+		oled.show()
+
+		# Append the string to the list
+		listDisplay.append(strOut)
+
+		# Keep the list short
+		if len(listDisplay) > 5:
+			flopp = listDisplay.pop(0)
+
+		# Print out the list to the
+		r = 0
+		for row in listDisplay:
+			oled.text(row, 0, r)
+			r = r + 10
+		oled.show()
 
 class clRADIOIDMessage(object):
     """
@@ -371,10 +424,13 @@ def subGetFLARM_ID(UARTNo):
 
 	# The usual suspect com speed
 	ComSpeedArray = [4800, 9600, 14400, 19200, 28800, 38400, 56000, 57600, 115200, 230400]
+	#ComSpeedArray = [14400, 19200, 57600]
 
 	for ComSpeed in ComSpeedArray:
 
 		print("Com check @"+ str(ComSpeed) + " on UART-port: " + str(UARTNo))
+
+		WriteOLED("Checking " + str(ComSpeed))
 
 		# Initializing FLARM-port
 		tmpUART = UART(UARTNo, ComSpeed)
@@ -410,7 +466,7 @@ def subGetFLARM_ID(UARTNo):
 			if chkSumLine == chkCalculated and chkCalculated != "" and chkSumLine != "":
 				# Bang on! Lets ask the FLARM about its identity
 
-				# !!!! Enable the watch dog here !!!!
+				# Enabling the watchdog
 				print("Enabled watchdog")
 
 				pinPyReady.high()
@@ -478,7 +534,14 @@ def subGetFLARM_ID(UARTNo):
 							return ComSpeed, returnLine.Identity # Returning the comspeed and the identity of the FLARM
 							break
 						else:
-							whatever = True
+                            # Rev 0.3 -->
+
+                            # whatever = true       # post rev 0.3
+
+                            # No communication has been established with the FLARM, but since the checksum is correct the baude-rate is deemed to be correct.
+							return ComSpeed, "000000" # Returning the comspeed and null as the identity of the FLARM
+
+                            # <-- Rev 0.3
 
 					# Cut away the handled sentence from the working material
 					MessageFromNMEAPort = MessageFromNMEAPort[(2+(MessageFromNMEAPort.find("\r\n"))):]
@@ -499,21 +562,24 @@ while True:
 
 		FlarmSpeed = 0
 		
-		while FlarmSpeed == 0:
+		while FlarmSpeed <= 0:
 			FlarmSpeed, MyID = subGetFLARM_ID(FLARM_UART_No)
 
 		if FlarmSpeed < 1:
 			# Communication with the FLARM has been established, correcting the comspeed
 			print("No communication was detected, keeping the default values")
 			FlarmSpeed = 38400
-		
+		else:
+			# Writing to the OLED
+			WriteOLED(MyID + " @ " + str(FlarmSpeed))
+
 		# Initializing FLARM-port
 		u2 = UART(FLARM_UART_No, FlarmSpeed)
-		u2.init(FlarmSpeed, bits=8, parity=None, stop=1, rxbuf=512)
+		u2.init(FlarmSpeed, bits=8, parity=None, stop=1, rxbuf=2048)
 
 		# Initializing Butterfly-port
 		u3 = UART(Butterfly_UART_No, FlarmSpeed)
-		u3.init(FlarmSpeed, bits=8, parity=None, stop=1, rxbuf=512)
+		u3.init(FlarmSpeed, bits=8, parity=None, stop=1, rxbuf=2048)
 
 
 		# Initializing ADSB-port
@@ -711,17 +777,30 @@ while True:
 			# print("MyLong: " + str(MyLong))
 			# print("MyAlt: " + MyAlt)
 			
-	
+    # Calculating the scan time
 	now = pyb.millis()
-	diff = now - last 
-	if ((diff > tmax)):
+	
+    # diff is the time of the last scan
+    diff = now - last 
+	
+    if ((diff > tmax)):
+        # The scan has set a new max length
 		tmax = diff
 		print("Execution: " + str(tmax))
-	if diff > 100:
-		print("diff: " + str(diff))
+	
+    if diff > 100:
+        # The scan is more than 100 ms
+    	print("diff: " + str(diff))
+
 	last = now
+
+    # Setting the watchdog output
 	WatchDogValue = not WatchDogValue
 	pinWD_OUT.value(WatchDogValue)
-	pinPyReady.value(True)
 
-pinPyReady.value(False)
+    # Setting the Ready-signal for the hardware watchdog
+	#pinPyReady.value(True)
+    pinPyReady.high()
+
+#pinPyReady.value(False)
+pinPyReady.low()
