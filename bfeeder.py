@@ -3,9 +3,10 @@
 # Butterfly feeder - the code
 # The manual: https://bit.ly/2pCb3GA
 #
-# Revision 0.1, first released version - 20200106/mik
-# Revision 0.2, added harware watchdog - 20210316/mik
-# Revision 0.3, removed confirmation of FLARM-ID in order to set comspeed - 20210405/mik
+# Revision 0.1, first released version
+# Revision 0.2, added harware watchdog
+# Revision 0.3, removed confirmation of FLARM-ID in order to set comspeed
+# Revision 0.4, added function to monitor the scantime
 #
 # avionics@skyracer.net
 
@@ -776,7 +777,10 @@ while True:
 			# print("MyLat: " + str(MyLat))
 			# print("MyLong: " + str(MyLong))
 			# print("MyAlt: " + MyAlt)
-			
+
+    # Scantime handler
+    Scantime_Count = 0          # Rev 0.4
+
     # Calculating the scan time
 	now = pyb.millis()
 	
@@ -791,6 +795,35 @@ while True:
     if diff > 100:
         # The scan is more than 100 ms
     	print("diff: " + str(diff))
+
+    # Rev 0.4 -->
+
+    if diff > 900:
+        # The scan is more than 900 ms, time to bypass information
+        StartScantime_Counter = True
+        Scantime_Count = 0
+    	
+        # Disengage watchdog
+        pinPyReady.low()
+
+        print("disengane watchdog: " + str(diff))
+
+    if StartScantime_Counter == True:
+        if Scantime_Count > 60:
+            StartScantime_Counter = False
+
+            # Engage watchdog
+            pinPyReady.high()
+
+    		bootMSG = "$PFLAA,0,-9999,0,0,1,XXXXXX,0,0.0,0,0,8*51"
+	    	chkSumLine, chkCalculated = subCheckSum(bootMSG)
+		    u3.write(bootMSG + "\r\n")
+
+            print("engane watchdog: " + str(diff))
+        else:
+            Scantime_Count = Scantime_Count + 1
+
+    # <--- Rev 0.4
 
 	last = now
 
