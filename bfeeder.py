@@ -673,7 +673,7 @@ while True:
 			LeftOverNMEAPort = MessageFromNMEAPort
 			#print("LeftOverNMEAPort: " + LeftOverNMEAPort)
 
-		if X8_IN.value():
+		if not X8_IN.value():
 			ScanTimeTest = ScanTimeTest + 10
 			time.sleep_ms(ScanTimeTest)
 			#print("TestScan = " + str(ScanTimeTest))
