@@ -7,6 +7,7 @@
 # Revision 0.2, added harware watchdog
 # Revision 0.3, removed confirmation of FLARM-ID in order to set comspeed
 # Revision 0.4, added function to monitor the scantime
+# Revision 0.5, bugfixed function to monitor the scantime
 #
 # avionics@skyracer.net
 
@@ -19,7 +20,7 @@ import math
 import pyb
 
 Init = True
-listNMEA = []	    # List of NMEA-messages
+listNMEA = []		# List of NMEA-messages
 listADSB = []		# List of ADSB-messages
 listDisplay = []	# List of ADSB-messages for OLED-display
 
@@ -38,7 +39,16 @@ LeftOverADSBPort = ""
 last = 0
 tmax = 0
 diff = 0
+Scantime_Count = 0
+StartScantime_Counter = False
+StartScantime_Counter_Old = False
+ScanTimeTest = 0
 
+# For the scantime tester
+#TestScan = Pin('X8', Pin.IN)
+X8_IN = Pin('X8', Pin.IN, Pin.PULL_UP)
+
+# For the uart ports
 Butterfly_UART_No = 3
 FLARM_UART_No = 2
 ADSB_UART_No = 6
@@ -47,10 +57,12 @@ ADSB_UART_No = 6
 #FLARM_UART_No = 6
 #ADSB_UART_No = 2
 
+# For the hardware watchdog
 pinWD_OUT = Pin('X6', Pin.OUT)
 pinPyReady = Pin('X5', Pin.OUT)
 WatchDogValue = False
 
+# For the OLED display
 pinVCC = Pin('X10', Pin.OUT)
 pinGND = Pin('X9', Pin.OUT)
 
@@ -164,7 +176,7 @@ def subGeoCalc(LatMe,LongMe,LatTarget,LongTarget):
 
 class clADSBInfo(object):
 	
-    def __init__(self, sentance):
+	def __init__(self, sentance):
 
 		# ICAO	ICAO number of aircraft (3 bytes) 3C65AC
 		# FLAGS   Flags (see below) 1
@@ -388,7 +400,7 @@ def WriteOLED(strOut):
 		oled.show()
 
 class clRADIOIDMessage(object):
-    """
+	"""
 	Time
 	RecieverWarning
 	Lat
@@ -398,25 +410,25 @@ class clRADIOIDMessage(object):
 	VelH
 	Track
 	Date
-    """
-    #def __init__(self, sentance, diffLat=0, diffLong=0):
-    def __init__(self, sentance):
-        import time
+	"""
+	#def __init__(self, sentance, diffLat=0, diffLong=0):
+	def __init__(self, sentance):
+		import time
 
 		# $PFLAC,A,RADIOID,1,4AD4F5*02
 		# PFLAC: $PFLAC
 		# RecieverWarning: A
 		# RADIOID: RADIOID
 		# Identity: 4AD4F5
-        # CRC: *02
+		# CRC: *02
 
-        (self.GPRMC,
+		(self.GPRMC,
 		 self.PFLAC ,
 		 self.RecieverWarning ,
 		 self.RADIOID ,
 		 self.Identity,
-         self.CRC
-        ) = sentance.replace("\r\n","").replace("*",",").split(",")
+		 self.CRC
+		) = sentance.replace("\r\n","").replace("*",",").split(",")
 
 def subGetFLARM_ID(UARTNo):
 	# This sub is supposed to identify the FLARM identity and the com speed
@@ -424,7 +436,7 @@ def subGetFLARM_ID(UARTNo):
 	FoundID = ""
 
 	# The usual suspect com speed
-	ComSpeedArray = [4800, 9600, 14400, 19200, 28800, 38400, 56000, 57600, 115200, 230400]
+	ComSpeedArray = [19200, 4800, 9600, 14400, 28800, 38400, 56000, 57600, 115200, 230400]
 	#ComSpeedArray = [14400, 19200, 57600]
 
 	for ComSpeed in ComSpeedArray:
@@ -534,19 +546,14 @@ def subGetFLARM_ID(UARTNo):
 							FoundID = returnLine.Identity
 							return ComSpeed, returnLine.Identity # Returning the comspeed and the identity of the FLARM
 							break
-						else:
-                            # Rev 0.3 -->
 
-                            # whatever = true       # post rev 0.3
-
-                            # No communication has been established with the FLARM, but since the checksum is correct the baude-rate is deemed to be correct.
-							return ComSpeed, "000000" # Returning the comspeed and null as the identity of the FLARM
-
-                            # <-- Rev 0.3
+							# <-- Rev 0.3
 
 					# Cut away the handled sentence from the working material
 					MessageFromNMEAPort = MessageFromNMEAPort[(2+(MessageFromNMEAPort.find("\r\n"))):]
-		
+
+				return ComSpeed, "000000" # Returning the comspeed and null as the identity of the FLARM
+
 		tmpUART.deinit
 	
 	if FoundID == "":
@@ -588,6 +595,7 @@ while True:
 		u6 = UART(ADSB_UART_No, u6_speed)
 		u6.init(u6_speed, bits=8, parity=None, stop=1, rxbuf=512)
 
+		# Fiddling in order to charge up the hardware watchdog
 		pinPyReady.high()
 		pinWD_OUT.low()
 		time.sleep(0.2)
@@ -595,11 +603,10 @@ while True:
 		time.sleep(0.2)
 		pinWD_OUT.low()
 
-		bootMSG = "$PFLAA,0,9999,0,0,1,AAAAAA,0,0.0,0,0,8*51"
-		chkSumLine, chkCalculated = subCheckSum(bootMSG)
-		u3.write(bootMSG + "\r\n")
-		print(chkSumLine + " calculated: " + chkCalculated)
-		print(bootMSG + "\r\n")
+		# Seding out a fake target just to show that the bfeeder har started
+		u3.write("$PFLAA,0,9999,0,0,1,BBBBBB,0,0.0,0,0,8*51\r\n")
+
+		last = pyb.millis()		# Rev 0.5
 
 	if u2.any() > 0:
 		# Whoohoo! There are information in the UART2 buffer
@@ -665,6 +672,14 @@ while True:
 			
 			LeftOverNMEAPort = MessageFromNMEAPort
 			#print("LeftOverNMEAPort: " + LeftOverNMEAPort)
+
+		if X8_IN.value():
+			ScanTimeTest = ScanTimeTest + 10
+			time.sleep_ms(ScanTimeTest)
+			#print("TestScan = " + str(ScanTimeTest))
+		#else:
+		#	print("TestScan = False")
+
 
 	if u6.any() > 0:
 		# New message from ADSB-reciever is in the buffer
@@ -755,6 +770,24 @@ while True:
 
 				print("ADSBPort: " + newLine)
 
+			if MessageFromADSBPort.find("\r\n") > -1 and str(MessageFromADSBPort).startswith("#S"):
+				if StartScantime_Counter == True:
+					print("Scantime_Count: " + str(Scantime_Count))
+					Scantime_Count = Scantime_Count + 1
+					if Scantime_Count > 20:
+						StartScantime_Counter = False
+						ScanTimeTest = 0
+
+						# Engage watchdog
+						pinPyReady.high()
+					
+						# Seding out a fake target just to show that the bfeeder has started
+						bootMSG = "$PFLAA,0,9999,0,0,1,BBBBBB,0,0.0,0,0,8*51"
+						u3.write(bootMSG + "\r\n")
+
+						print("engane watchdog: " + str(diff))
+						WriteOLED("WD started: " + str(diff))  # Added in rev 0.5
+
 			# Cut away the appended sentence from the working material
 			MessageFromADSBPort = MessageFromADSBPort[(2+(MessageFromADSBPort.find("\r\n"))):]
 
@@ -778,62 +811,55 @@ while True:
 			# print("MyLong: " + str(MyLong))
 			# print("MyAlt: " + MyAlt)
 
-    # Scantime handler
-    Scantime_Count = 0          # Rev 0.4
-
-    # Calculating the scan time
+	# Scantime handler
+	
+	# Calculating the scan time
 	now = pyb.millis()
 	
-    # diff is the time of the last scan
-    diff = now - last 
+	# diff is the time of the last scan
+	diff = now - last 
 	
-    if ((diff > tmax)):
-        # The scan has set a new max length
+	if ((diff > tmax)):
+		# The scan has set a new max length
 		tmax = diff
 		print("Execution: " + str(tmax))
 	
-    if diff > 100:
-        # The scan is more than 100 ms
-    	print("diff: " + str(diff))
+	if diff > 100:
+		# The scan is more than 100 ms
+		print("diff: " + str(diff))
 
-    # Rev 0.4 -->
+	# Rev 0.4 -->
 
-    if diff > 900:
-        # The scan is more than 900 ms, time to bypass information
-        StartScantime_Counter = True
-        Scantime_Count = 0
-    	
-        # Disengage watchdog
-        pinPyReady.low()
+	if diff > 400:
+		# The scan is more than 900 ms, time to bypass information
+		StartScantime_Counter = True
+		Scantime_Count = 0
+		
+	if StartScantime_Counter and not StartScantime_Counter_Old:
+		# bootMSG = "$PFLAA,0,9999,0,0,1,BBBBBB,0,0.0,0,0,8*51"
+		# bootMSG = "$PFLAA,0,-9999,0,0,1,CCCCCC,0,0.0,0,0,8*7C"
 
-        print("disengane watchdog: " + str(diff))
+		# Seding out a fake target just to show that the bfeeder has stopped 	# Added in rev 0.5
+		u3.write("$PFLAA,0,-9999,0,0,1,CCCCCC,0,0.0,0,0,8*7C\r\n")				# Added in rev 0.5
 
-    if StartScantime_Counter == True:
-        if Scantime_Count > 60:
-            StartScantime_Counter = False
+		print("disengane watchdog: " + str(diff))
+		WriteOLED("WD stopped: " + str(diff))	# Added in rev 0.5
 
-            # Engage watchdog
-            pinPyReady.high()
+		# Disengage watchdog
+		pinPyReady.low()
 
-    		bootMSG = "$PFLAA,0,-9999,0,0,1,XXXXXX,0,0.0,0,0,8*51"
-	    	chkSumLine, chkCalculated = subCheckSum(bootMSG)
-		    u3.write(bootMSG + "\r\n")
-
-            print("engane watchdog: " + str(diff))
-        else:
-            Scantime_Count = Scantime_Count + 1
-
-    # <--- Rev 0.4
+	# <--- Rev 0.4
 
 	last = now
+	StartScantime_Counter_Old = StartScantime_Counter
 
-    # Setting the watchdog output
+	# Setting the watchdog output
 	WatchDogValue = not WatchDogValue
 	pinWD_OUT.value(WatchDogValue)
 
-    # Setting the Ready-signal for the hardware watchdog
+	# Setting the Ready-signal for the hardware watchdog
 	#pinPyReady.value(True)
-    pinPyReady.high()
+	pinPyReady.high()
 
 #pinPyReady.value(False)
 pinPyReady.low()
