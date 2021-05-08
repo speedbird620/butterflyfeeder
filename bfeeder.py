@@ -8,6 +8,7 @@
 # Revision 0.3, removed confirmation of FLARM-ID in order to set comspeed
 # Revision 0.4, added function to monitor the scantime
 # Revision 0.5, bugfixed function to monitor the scantime
+# Revision 0.6, writing input from butterfly to FLARM
 #
 # avionics@skyracer.net
 
@@ -790,6 +791,26 @@ while True:
 
 			# Cut away the appended sentence from the working material
 			MessageFromADSBPort = MessageFromADSBPort[(2+(MessageFromADSBPort.find("\r\n"))):]
+
+	# ---> rev 0.6
+	if u3.any() > 0:
+
+		# Read the buffer
+		try:
+			MessageFromButterflyPort = u3.read().decode()
+			#MessageFromADSBPort = "#S:1.6,,,14,,,C26C\r\n#A:4AC9E1,1F00,SAS436L,,59.22249,17.80600,6875,10,305,-1216,746,119,6,,99D5\r\n#A:502D0B,,BTI2HU,,59.10291,18.00650,38000,299,435,-64,676,57,0,,16B8\r\n#A:5110E7,1F00,SAS178,,59.20345,17.70914,7825,26,247,-1280,913,246,8,,FA7B\r\n#A:3944EC,,AFR1263,,59.52774,17.40575,18100,212,368,2240,668,56,0,,A94\r\n"
+
+			print("U3: " + MessageFromButterflyPort)
+
+		except:
+			print("U3 except" + MessageFromButterflyPort)
+
+
+		# Write messageto serial port
+		u2.write(MessageFromButterflyPort)
+	# <--- rev 0.6
+
+
 
 	# Extract information from the NMEA-sentence
 	while len(listNMEA) > 0:
