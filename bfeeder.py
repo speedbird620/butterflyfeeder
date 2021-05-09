@@ -9,6 +9,7 @@
 # Revision 0.4, added function to monitor the scantime
 # Revision 0.5, bugfixed function to monitor the scantime
 # Revision 0.6, writing input from butterfly to FLARM
+# Revision 0.7, added a function to fake FLARM-response
 #
 # avionics@skyracer.net
 
@@ -44,6 +45,18 @@ Scantime_Count = 0
 StartScantime_Counter = False
 StartScantime_Counter_Old = False
 ScanTimeTest = 0
+
+# ---> rev 0.7
+FakeFLARM = False	# If no identity from the flarm is obatined, the butterfly feeder will simulate the response
+
+#IN
+IN_List = ["$PFLAP,R", "$PFLAC,R,HWVER*54", "$PFLAC,R,SWVER*4F", "$PFLAC,R,MODEC*4A", "$PFLAC,R,RANGE*55", "$PFLAC,R,VRANGE*03", "$PFLAC,R,PCASRANGE*54", "$PFLAC,R,PCASVRANGE*02", "$PFLAC,R,ADSBRANGE*41", "$PFLAC,R,ADSBVRANGE*17", "$PFLAC,R,OBSTDB*06", "$PFLAC,R,SER*4E", "$PFLAC,R,RADIOID*56", "$PFLAC,R,ID*07", "$PFLAC,R,ACFT*1A", "$PFLAC,R,CAP*58", "$PFLAC,R,LIC*4C", "$PFLAC,R,NOTRACK*44", "$PFLAC,R,PRIV*17", "$PFLAC,R,LOGINT*1D", "$PFLAC,R,MODEC*4A", "$PFLAC,R,VRANGE*03", "$PFLAC,R,PCASRANGE*54", "$PFLAC,R,PCASVRANGE*02", "$PFLAC,R,ADSBRANGE*41", "$PFLAC,R,ADSBVRANGE*17", "$PFLAC,R,LIC*4C"]
+
+#UT
+#OUT_List = [, "$PFLAC,A,ERROR*41", "$PFLAC,A,RANGE,25000*5D", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,OBSTDB,1,3,,*17", "$PGRMZ,191,F,2*33", "$PFLAC,A,SER,0000004292", "$PFLAC,A,RADIOID,2,DDDAFC*77", "$PFLAC,A,ID,0xFFFFFF*70", "$PFLAC,A,ACFT,1*14", "$PFLAC,A,CAP,IGC;SD;BARO;ENL*5F", "$PFLAC,A,ERROR*41", "$PFLAC,A,NOTRACK,0*4B", "$PFLAC,A,PRIV,0*18", "$PFLAC,A,LOGINT,1*13", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41"]
+OUT_List = ["$PFLAP,A*26", "$PFLAC,A,HWVER,BFeeder*28", "$PFLAC,A,RANGE,25000*5D", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,OBSTDB,1,3,,*17", "$PGRMZ,191,F,2*33", "$PFLAC,A,SER,0000000000", "$PFLAC,A,RADIOID,2,000000*77", "$PFLAC,A,ID,0xFFFFFF*70", "$PFLAC,A,ACFT,1*14", "$PFLAC,A,CAP,IGC;SD;BARO;ENL*5F", "$PFLAC,A,ERROR*41", "$PFLAC,A,NOTRACK,0*4B", "$PFLAC,A,PRIV,0*18", "$PFLAC,A,LOGINT,1*13", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41", "$PFLAC,A,ERROR*41"]
+# <--- rev 0.7
+
 
 # For the scantime tester
 #TestScan = Pin('X8', Pin.IN)
@@ -573,6 +586,8 @@ while True:
 		
 		while FlarmSpeed <= 0:
 			FlarmSpeed, MyID = subGetFLARM_ID(FLARM_UART_No)
+			if MyID == "000000":
+				FakeFLARM = True	# Rev 0.7, no identity from the flarm wss obatined, the butterfly feeder will simulate the response
 
 		if FlarmSpeed < 1:
 			# Communication with the FLARM has been established, correcting the comspeed
@@ -794,7 +809,8 @@ while True:
 
 	# ---> rev 0.6
 	if u3.any() > 0:
-
+		
+		MessageFromButterflyPort = ""
 		# Read the buffer
 		try:
 			MessageFromButterflyPort = u3.read().decode()
@@ -805,9 +821,41 @@ while True:
 		except:
 			print("U3 except" + MessageFromButterflyPort)
 
+		# ---> rev 0.7
+		if FakeFLARM:
 
-		# Write messageto serial port
-		u2.write(MessageFromButterflyPort)
+			while len(MessageFromButterflyPort) > 0 and not MessageFromButterflyPort.find("\r\n") == -1:
+
+				if MessageFromButterflyPort.find("\r\n") > -1:
+					# Yes, there is a carrage return in the sentence
+
+					# Extracting a sentence for further handling
+					newLine = MessageFromButterflyPort[:(MessageFromButterflyPort.find("\r\n"))]
+
+					print("newLine: "+ newLine)
+
+					if len(newLine) > 1:
+						# Extract the provided checksum and calculate the cecksum as reference
+						for i in range(len(IN_List)):
+							if newLine == IN_List[i]:
+								chkSumLine, chkCalculated = subCheckSum(OUT_List[i])
+								u3.write(OUT_List[i][:-3] + "*" + chkCalculated + "\r\n")
+								print(OUT_List[i][:-3] + "*" + chkCalculated + "\r\n")
+								#u3.write(OUT_List[i] + "\r\n")
+								#print("U3 out: " + OUT_List[i] + "\r\n")
+								break
+				
+				MessageFromButterflyPort = MessageFromButterflyPort[(2+(MessageFromButterflyPort.find("\r\n"))):]
+
+		else:
+			# Write messageto serial port
+			u2.write(MessageFromButterflyPort)
+		# <--- rev 0.7
+
+		# Write messageto serial port			# Commented rev 0.7
+		#u2.write(MessageFromButterflyPort)		# Commented rev 0.7
+
+
 	# <--- rev 0.6
 
 
@@ -851,7 +899,7 @@ while True:
 
 	# Rev 0.4 -->
 
-	if diff > 400:
+	if diff > 600:
 		# The scan is more than 900 ms, time to bypass information
 		StartScantime_Counter = True
 		Scantime_Count = 0
