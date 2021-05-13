@@ -79,6 +79,8 @@ WatchDogValue = False
 # For the OLED display
 pinVCC = Pin('X10', Pin.OUT)
 pinGND = Pin('X9', Pin.OUT)
+#pinVCC = Pin('X21', Pin.OUT)
+#pinGND = Pin('X22', Pin.OUT)
 
 pinVCC.high()
 pinGND.low()
@@ -87,6 +89,8 @@ time.sleep(0.2)
 
 psda = machine.Pin('Y7', machine.Pin.OUT_PP)
 pscl = machine.Pin('Y8', machine.Pin.OUT_PP)
+#psda = machine.Pin('X19', machine.Pin.OUT_PP)
+#pscl = machine.Pin('X20', machine.Pin.OUT_PP)
 
 i2c = machine.I2C(scl=pscl, sda=psda)
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, 60)
