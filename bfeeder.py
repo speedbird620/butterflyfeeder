@@ -2,6 +2,7 @@
 
 # Butterfly feeder - the code
 # The manual: https://bit.ly/2pCb3GA
+# The source code: https://github.com/speedbird620/butterflyfeeder/blob/master/bfeeder.py,
 #
 # Revision 0.1, first released version
 # Revision 0.2, added harware watchdog
@@ -10,6 +11,7 @@
 # Revision 0.5, bugfixed function to monitor the scantime
 # Revision 0.6, writing input from butterfly to FLARM
 # Revision 0.7, added a function to fake FLARM-response
+# Revision 0.8, adjusted so a default ICAO-code can be entered in the variables, pls se MyID
 #
 # avionics@skyracer.net
 
@@ -32,7 +34,7 @@ MyLong = 0.0
 ZoomFactor = 1
 MaxRange = 60000 # Meters
 MaxDeltaAlt = 20000
-MyID = ""
+MyID = ""							# If the FLARM is assigned with an ICAO-code, enter it hete here. Example: "4AE0E1"
 MyAlt = 0
 MessageFromNMEAPort = ""
 MessageFromADSBPort = ""
@@ -77,20 +79,16 @@ pinPyReady = Pin('X5', Pin.OUT)
 WatchDogValue = False
 
 # For the OLED display
-pinVCC = Pin('X10', Pin.OUT)
-pinGND = Pin('X9', Pin.OUT)
-#pinVCC = Pin('X21', Pin.OUT)
-#pinGND = Pin('X22', Pin.OUT)
+pinVCC = Pin('X21', Pin.OUT)
+pinGND = Pin('X22', Pin.OUT)
 
 pinVCC.high()
 pinGND.low()
 
 time.sleep(0.2)
 
-psda = machine.Pin('Y7', machine.Pin.OUT_PP)
-pscl = machine.Pin('Y8', machine.Pin.OUT_PP)
-#psda = machine.Pin('X19', machine.Pin.OUT_PP)
-#pscl = machine.Pin('X20', machine.Pin.OUT_PP)
+psda = machine.Pin('X19', machine.Pin.OUT_PP)
+pscl = machine.Pin('X20', machine.Pin.OUT_PP)
 
 i2c = machine.I2C(scl=pscl, sda=psda)
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, 60)
@@ -589,17 +587,15 @@ while True:
 		FlarmSpeed = 0
 		
 		while FlarmSpeed <= 0:
-			FlarmSpeed, MyID = subGetFLARM_ID(FLARM_UART_No)
-			if MyID == "000000":
+			FlarmSpeed, FLARM_ID = subGetFLARM_ID(FLARM_UART_No)
+			if FLARM_ID == "000000":
 				FakeFLARM = True	# Rev 0.7, no identity from the flarm wss obatined, the butterfly feeder will simulate the response
-
-		if FlarmSpeed < 1:
-			# Communication with the FLARM has been established, correcting the comspeed
-			print("No communication was detected, keeping the default values")
-			FlarmSpeed = 38400
-		else:
-			# Writing to the OLED
-			WriteOLED(MyID + " @ " + str(FlarmSpeed))
+				# Writing to the OLED
+				WriteOLED("No FLARM @ " + str(FlarmSpeed))				# Rev 0.8
+			else:														# Rev 0.8
+				MyID = FLARM_ID											# Rev 0.8
+				# Writing to the OLED									# Rev 0.8
+				WriteOLED(MyID + " @ " + str(FlarmSpeed))				# Rev 0.8
 
 		# Initializing FLARM-port
 		u2 = UART(FLARM_UART_No, FlarmSpeed)
