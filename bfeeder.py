@@ -458,9 +458,6 @@ def subGetFLARM_ID(UARTNo):
 
 	for ComSpeed in ComSpeedArray:
 
-		if ComSpeed < 0:
-			x = 1 / 0
-
 		print("Com check @"+ str(ComSpeed) + " on UART-port: " + str(UARTNo))
 
 		WriteOLED("Checking " + str(ComSpeed))
