@@ -453,7 +453,7 @@ def subGetFLARM_ID(UARTNo):
 	FoundID = ""
 
 	# The usual suspect com speed
-	ComSpeedArray = [19200, 4800, 9600, 14400, 28800, 38400, 56000, 57600, 115200, 230400, -10]
+	ComSpeedArray = [19200, 4800, 9600, 14400, 28800, 38400, 56000, 57600, 115200, 230400]
 	#ComSpeedArray = [14400, 19200, 57600]
 
 	for ComSpeed in ComSpeedArray:
