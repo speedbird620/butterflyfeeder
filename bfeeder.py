@@ -12,6 +12,7 @@
 # Revision 0.6, writing input from butterfly to FLARM
 # Revision 0.7, added a function to fake FLARM-response
 # Revision 0.8, adjusted so a default ICAO-code can be entered in the variables, pls se MyID
+# Revision 0.9, added try-handling for the extraction of the radio-ID
 #
 # avionics@skyracer.net
 
@@ -452,10 +453,13 @@ def subGetFLARM_ID(UARTNo):
 	FoundID = ""
 
 	# The usual suspect com speed
-	ComSpeedArray = [19200, 4800, 9600, 14400, 28800, 38400, 56000, 57600, 115200, 230400]
+	ComSpeedArray = [19200, 4800, 9600, 14400, 28800, 38400, 56000, 57600, 115200, 230400, -10]
 	#ComSpeedArray = [14400, 19200, 57600]
 
 	for ComSpeed in ComSpeedArray:
+
+		if ComSpeed < 0:
+			x = 1 / 0
 
 		print("Com check @"+ str(ComSpeed) + " on UART-port: " + str(UARTNo))
 
@@ -498,23 +502,27 @@ def subGetFLARM_ID(UARTNo):
 				# Enabling the watchdog
 				print("Enabled watchdog")
 
-				pinPyReady.high()
-				pinWD_OUT.low()
-				time.sleep(0.2)
+				pinPyReady.high()	# Setting pin for disable the bypass of the PyBoard
+				pinWD_OUT.high()	# Setting watchdog oputput pin high
+				time.sleep(0.1)		# Pausing to charge the capacitor
+				pinWD_OUT.low()		# Setting watchdog oputput pin low
+				time.sleep(0.1)		# ... and so it goes on
 				pinWD_OUT.high()
-				time.sleep(0.2)
+				time.sleep(0.1)
 				pinWD_OUT.low()
-				time.sleep(0.2)
+				time.sleep(0.1)
 				pinWD_OUT.high()
-				time.sleep(0.2)
+				time.sleep(0.1)
+				pinWD_OUT.low()
+				time.sleep(0.1)
 
 				# Asking politely about the ID from the flarm
 				tmpUART.write("$PFLAC,R,RADIOID\r\n")
 
-				pinPyReady.low()
+				pinPyReady.low()	# Lowering the pin to engage the bypass of the PyBoard
 
 				# Waiting for the response
-				time.sleep(2)
+				time.sleep(3)
 
 				if tmpUART.any() > 0:
 					# Whoohoo! There are information in the UART2 buffer
@@ -552,10 +560,13 @@ def subGetFLARM_ID(UARTNo):
 						#print("newLine: " + newLine)
 
 						# Is this the line the we are looking for? PFLAC is the message containing the FLARM-identity.
-						if newLine[:6] == "$PFLAC":
+						if newLine[:16] == "$PFLAC,A,RADIOID":
 
 							# Extracting the information within the string
-							returnLine = clRADIOIDMessage(newLine)
+							try:											# Rev 0.9
+								returnLine = clRADIOIDMessage(newLine)		# Rev 0.9
+							except:											# Rev 0.9
+								whatever = True								# Rev 0.9
 
 							print("Com speed detected: " + str(ComSpeed))
 							print("ID: " + returnLine.Identity)
@@ -579,23 +590,25 @@ def subGetFLARM_ID(UARTNo):
 while True:
 	# Continious execution from here
 
-	#machine.freq(84000000)
+	print("Booting ...")
 
 	if Init:
 		Init = False
 
 		FlarmSpeed = 0
-		
 		while FlarmSpeed <= 0:
 			FlarmSpeed, FLARM_ID = subGetFLARM_ID(FLARM_UART_No)
-			if FLARM_ID == "000000":
-				FakeFLARM = True	# Rev 0.7, no identity from the flarm wss obatined, the butterfly feeder will simulate the response
-				# Writing to the OLED
-				WriteOLED("No FLARM @ " + str(FlarmSpeed))				# Rev 0.8
-			else:														# Rev 0.8
-				MyID = FLARM_ID											# Rev 0.8
-				# Writing to the OLED									# Rev 0.8
-				WriteOLED(MyID + " @ " + str(FlarmSpeed))				# Rev 0.8
+
+		print("FLARM_ID: " + FLARM_ID)
+
+		if FLARM_ID == "000000":
+			FakeFLARM = True	# Rev 0.7, no identity from the flarm wss obatined, the butterfly feeder will simulate the response
+			# Writing to the OLED
+			WriteOLED("No FLARM @ " + str(FlarmSpeed))				# Rev 0.8
+		else:														# Rev 0.8
+			MyID = FLARM_ID											# Rev 0.8
+			# Writing to the OLED									# Rev 0.8
+			WriteOLED(MyID + " @ " + str(FlarmSpeed))				# Rev 0.8
 
 		# Initializing FLARM-port
 		u2 = UART(FLARM_UART_No, FlarmSpeed)
