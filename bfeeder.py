@@ -421,7 +421,7 @@ def WriteOLED(strOut):
 
 		if not Match:
 
-			print(row + " " + strOut)
+			print(strOut)
 
 			#Blanking the display
 			oled.fill(0)
