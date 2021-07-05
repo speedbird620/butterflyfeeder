@@ -397,7 +397,7 @@ def subExtractADSBInfo(Sentence,MyLat,MyLong,MyAlt):
 
 		print("dN: " + str(int(deltaNorth)) + " dE: " + str(int(deltaEast)) +  " dA: " + str(deltaAlt) + " Call: " + ADSBSplit.Call + " Squak: " + ADSBSplit.Squak)
 		#subWrite2Log("Diff Call: " + Call + " n: " + str(int(deltaNorth)) + " e: " + str(int(deltaEast)) +  " a: " + str(deltaAlt))
-		print(str(deltaAlt))
+		#print(str(deltaAlt))
 		# PFLAA-message
 		# PFLAA,<AlarmLevel>,<RelativeNorth>,<RelativeEast>,<RelativeVertical>,<IDType>,<ID>,<Track>,<TurnRate>,<GroundSpeed>,<ClimbRate>,<Type>
 		strPFLAAMsg =  "$PFLAA,0," + str(int(deltaNorth)) + "," + str(int(deltaEast)) + "," + str(deltaAlt) + ",1," + ADSBSplit.ICAO + "," + ADSBSplit.Track + ",0.0," + ADSBSplit.VelH + "," + str(ADSBSplit.VelV) + ",8"
@@ -415,11 +415,13 @@ def WriteOLED(strOut):
 		if strOut != strGPSBad and strOut != strGPSGood and strOut != strDGPSGood:		# Rev 0.11
 			for row in listDisplay:
 				if strOut == row:
-					print(row + " " + strOut)
-					print(row)
+					# print(row + " " + strOut)
+					# print(row)
 					Match = True
 
 		if not Match:
+
+			print(row + " " + strOut)
 
 			#Blanking the display
 			oled.fill(0)
@@ -916,7 +918,7 @@ while True:
 			# print("MyLat: " + str(MyLat))
 			# print("MyLong: " + str(MyLong))
 			# print("MyAlt: " + MyAlt)
-			#print("GPS_SigQ: " + str(GPS_SigQ) + " _old: " + str(GPS_SigQ_Old))
+			# print("GPS_SigQ: " + str(GPS_SigQ) + " _old: " + str(GPS_SigQ_Old))
 
 			# ---> Rev 0.11
 			if GPS_SigQ != GPS_SigQ_Old:
