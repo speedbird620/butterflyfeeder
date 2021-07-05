@@ -13,6 +13,8 @@
 # Revision 0.7, added a function to fake FLARM-response
 # Revision 0.8, adjusted so a default ICAO-code can be entered in the variables, pls se MyID
 # Revision 0.9, added try-handling for the extraction of the radio-ID
+# Revision 0.10, added section of configurable variables and detection Oled display and disable the writing to display if none are connected
+# Revision 0.11, added indication off good/bad GPS
 #
 # avionics@skyracer.net
 
@@ -24,6 +26,18 @@ import time
 import math
 import pyb
 
+# ---> rev 0.10
+
+# Configurable variables:
+MyID = ""							# If the FLARM is assigned with an ICAO-code, enter it hete here. Example: "4AE0E1"
+ZoomFactor = 1						# Distances will be divided by ZoomFactor is dividing 
+MaxRange = 60000					# Maximum distance for targets to be displayed in meters
+MaxDeltaAlt = 20000					# Maximum altitude for targets to be displayed in meters
+
+# <--- rev 0.10
+
+
+
 Init = True
 listNMEA = []		# List of NMEA-messages
 listADSB = []		# List of ADSB-messages
@@ -32,10 +46,6 @@ listDisplay = []	# List of ADSB-messages for OLED-display
 x = 0
 MyLat = 0.0
 MyLong = 0.0
-ZoomFactor = 1
-MaxRange = 60000 # Meters
-MaxDeltaAlt = 20000
-MyID = ""							# If the FLARM is assigned with an ICAO-code, enter it hete here. Example: "4AE0E1"
 MyAlt = 0
 MessageFromNMEAPort = ""
 MessageFromADSBPort = ""
@@ -48,6 +58,11 @@ Scantime_Count = 0
 StartScantime_Counter = False
 StartScantime_Counter_Old = False
 ScanTimeTest = 0
+PrecenceOfOled = True
+GPS_SigQ_Old = "null"			# Rev 0.11
+strGPSBad = "GPS bad"			# Rev 0.11
+strGPSGood = "GPS good"			# Rev 0.11
+strDGPSGood = "D-GPS good"		# Rev 0.11
 
 # ---> rev 0.7
 FakeFLARM = False	# If no identity from the flarm is obatined, the butterfly feeder will simulate the response
@@ -91,8 +106,12 @@ time.sleep(0.2)
 psda = machine.Pin('X19', machine.Pin.OUT_PP)
 pscl = machine.Pin('X20', machine.Pin.OUT_PP)
 
-i2c = machine.I2C(scl=pscl, sda=psda)
-oled = ssd1306.SSD1306_I2C(128, 64, i2c, 60)
+try:							# Rev 0.10
+	i2c = machine.I2C(scl=pscl, sda=psda)
+	oled = ssd1306.SSD1306_I2C(128, 64, i2c, 60)
+except:							# Rev 0.10
+	PrecenceOfOled = False		# Rev 0.10
+
 
 def subCheckSum(sentence):
 
@@ -325,7 +344,8 @@ def subExtractNMEAInfo(Sentence):
 		LongMinutes = strNMEASplit.Long[-8:]
 		Long = float(LongDegrees) + (float(LongMinutes)/60)
 
-	return 	Lat,Long,strNMEASplit.Alt
+	# return 	Lat,Long,strNMEASplit.Alt
+	return 	Lat,Long,strNMEASplit.Alt,strNMEASplit.SigQ			# Rev 0.11
 
 def subExtractADSBInfo(Sentence,MyLat,MyLong,MyAlt):
 
@@ -388,33 +408,36 @@ def subExtractADSBInfo(Sentence,MyLat,MyLong,MyAlt):
 def WriteOLED(strOut):
 	# This sub is supposed to write info to the OLED display
 
-	Match = False
+	if PrecenceOfOled:
 
-	for row in listDisplay:
-		if strOut == row:
-			print(row + " " + strOut)
-			print(row)
-			Match = True
+		Match = False
 
-	if not Match:
+		if strOut != strGPSBad and strOut != strGPSGood and strOut != strDGPSGood:		# Rev 0.11
+			for row in listDisplay:
+				if strOut == row:
+					print(row + " " + strOut)
+					print(row)
+					Match = True
 
-		#Blanking the display
-		oled.fill(0)
-		oled.show()
+		if not Match:
 
-		# Append the string to the list
-		listDisplay.append(strOut)
+			#Blanking the display
+			oled.fill(0)
+			oled.show()
 
-		# Keep the list short
-		if len(listDisplay) > 5:
-			flopp = listDisplay.pop(0)
+			# Append the string to the list
+			listDisplay.append(strOut)
 
-		# Print out the list to the
-		r = 0
-		for row in listDisplay:
-			oled.text(row, 0, r)
-			r = r + 10
-		oled.show()
+			# Keep the list short
+			if len(listDisplay) > 5:
+				flopp = listDisplay.pop(0)
+
+			# Print out the list to the
+			r = 0
+			for row in listDisplay:
+				oled.text(row, 0, r)
+				r = r + 10
+			oled.show()
 
 class clRADIOIDMessage(object):
 	"""
@@ -453,7 +476,7 @@ def subGetFLARM_ID(UARTNo):
 	FoundID = ""
 
 	# The usual suspect com speed
-	ComSpeedArray = [19200, 4800, 9600, 14400, 28800, 38400, 56000, 57600, 115200, 230400]
+	ComSpeedArray = [4800, 9600, 14400, 19200, 28800, 38400, 56000, 57600, 115200, 230400]
 	#ComSpeedArray = [14400, 19200, 57600]
 
 	for ComSpeed in ComSpeedArray:
@@ -587,10 +610,12 @@ def subGetFLARM_ID(UARTNo):
 while True:
 	# Continious execution from here
 
-	print("Booting ...")
 
 	if Init:
+		
 		Init = False
+
+		print("Booting ...")
 
 		FlarmSpeed = 0
 		while FlarmSpeed <= 0:
@@ -885,10 +910,32 @@ while True:
 			# GPGGA contains data such as time, long/lat, speed etc. This information needs to be extracted.
 			# Extracting the infromation from the GPRMC-message
 			
-			MyLat,MyLong,MyAlt = subExtractNMEAInfo(lineNMEA)
+			# MyLat,MyLong,MyAlt,GPS_SigQ = subExtractNMEAInfo(lineNMEA)
+
+			MyLat,MyLong,MyAlt,GPS_SigQ = subExtractNMEAInfo(lineNMEA)			# Rev 0.11
 			# print("MyLat: " + str(MyLat))
 			# print("MyLong: " + str(MyLong))
 			# print("MyAlt: " + MyAlt)
+			#print("GPS_SigQ: " + str(GPS_SigQ) + " _old: " + str(GPS_SigQ_Old))
+
+			# ---> Rev 0.11
+			if GPS_SigQ != GPS_SigQ_Old:
+				
+				GPS_SigQ_Old = GPS_SigQ
+
+				if GPS_SigQ == "0":
+					print("GPS is bad!")
+					WriteOLED(strGPSBad)
+
+				if GPS_SigQ == "1":
+					print("GPS is good")
+					WriteOLED(strGPSGood)
+
+				if GPS_SigQ == "2":
+					print("Dang! You got yourself a D-GPS ... respect")
+					WriteOLED(strDGPSGood)
+
+			# <--- Rev 0.11
 
 	# Scantime handler
 	
@@ -903,7 +950,7 @@ while True:
 		tmax = diff
 		print("Execution: " + str(tmax))
 	
-	if diff > 100:
+	if diff > 200:
 		# The scan is more than 100 ms
 		print("diff: " + str(diff))
 
