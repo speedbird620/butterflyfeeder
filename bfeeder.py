@@ -15,6 +15,7 @@
 # Revision 0.9, added try-handling for the extraction of the radio-ID
 # Revision 0.10, added section of configurable variables and detection Oled display and disable the writing to display if none are connected
 # Revision 0.11, added indication off good/bad GPS
+# Revision 0.12, added a function to bypass the BFeeder in case of bit-communication between the FLARM and the out-port
 #
 # avionics@skyracer.net
 
@@ -478,7 +479,7 @@ def subGetFLARM_ID(UARTNo):
 	FoundID = ""
 
 	# The usual suspect com speed
-	ComSpeedArray = [4800, 9600, 14400, 19200, 28800, 38400, 56000, 57600, 115200, 230400]
+	ComSpeedArray = [4800, 9600, 14400, 19200, 28800, 38400, 57600]
 	#ComSpeedArray = [14400, 19200, 57600]
 
 	for ComSpeed in ComSpeedArray:
@@ -612,12 +613,13 @@ def subGetFLARM_ID(UARTNo):
 while True:
 	# Continious execution from here
 
-
 	if Init:
 		
 		Init = False
 
 		print("Booting ...")
+
+		pinPyReady.low()	# Bypassing the BFeeder, rev 0.12
 
 		FlarmSpeed = 0
 		while FlarmSpeed <= 0:
@@ -679,7 +681,7 @@ while True:
 			# Adding the leftovers to the party
 			MessageFromNMEAPort = LeftOverNMEAPort + MessageFromNMEAPort
 
-			#print("NMEAPort: " + MessageFromNMEAPort)
+			print("NMEAPort: " + MessageFromNMEAPort)
 
 
 			# Delete any chars before the start character. In this case $
@@ -717,12 +719,75 @@ while True:
 							listNMEA.append(newLine + "\r\n")
 						else:
 							print("Checksum failed, found: " + chkSumLine + " should be: " + chkCalculated + " line:" + newLine)
+	
+						# ---> rev 0.12
+						if newLine == "$PFLAX,A*2E":
+							# The listening port is initiating bit-communication
+
+							# Send answer
+							u3.write(lineNMEA)
+							pinPyReady.low()	# Bypassing the BFeeder
+
+							print("Entered bit-communication")
+							WriteOLED("Enter Bit-com")
+
+							# Waiting for the response
+							time.sleep(2)
+							
+							ExitBitCommunication = 0
+
+							while ExitBitCommunication < 10:
+
+								if u2.any() > 0:
+									# Whoohoo! There are information in the UART2 buffer
+					
+									# Reading the information
+									try:
+										# Also quick and dirty, guilty as charged. This trice in five tries. Ff someone can explain why I ough this person a beer or a glass of wine. Ill have a bottle of Prosecco ... or two.
+										MessageFromNMEAPort = u2.read().decode()
+					
+										if MessageFromNMEAPort.find("\r\n") > -1:
+											# Yes, there is a carrage return in the sentence
+
+											# Extracting a sentence for further handling
+											MessageFromNMEAPort = MessageFromNMEAPort[:(MessageFromNMEAPort.find("\r\n"))]
+
+									except:
+										MessageFromNMEAPort = ""
+
+									print (MessageFromNMEAPort)
+
+									chkSumLine, chkCalculated = subCheckSum(MessageFromNMEAPort)
+
+									print(chkSumLine + " calculated: " + chkCalculated)
+
+									# Time to check the checksum
+									if chkSumLine == chkCalculated and chkCalculated != "" and chkSumLine != "":
+										# Bang on! Lets ask the FLARM about its identity
+
+										ExitBitCommunication = ExitBitCommunication + 1
+									
+									else:
+										ExitBitCommunication = 0
+
+									# Setting the watchdog output
+									WatchDogValue = not WatchDogValue
+									pinWD_OUT.value(WatchDogValue)
+
+								print("ExitBitCommunication: " + str(ExitBitCommunication) + " " + str(pyb.millis()))
+
+								time.sleep(2)
+
+							pinPyReady.high()
+							WriteOLED("Exit Bit-com")
+
+						# <--- rev 0.12
 
 					#print("Checksum, found: " + chkSumLine + " should be: " + chkCalculated + " line:" + newLine)
 
 					# Cut away the appended sentence from the working material
 					MessageFromNMEAPort = MessageFromNMEAPort[(2+(MessageFromNMEAPort.find("\r\n"))):]
-			
+
 			LeftOverNMEAPort = MessageFromNMEAPort
 			#print("LeftOverNMEAPort: " + LeftOverNMEAPort)
 
@@ -892,10 +957,11 @@ while True:
 		# Write messageto serial port			# Commented rev 0.7
 		#u2.write(MessageFromButterflyPort)		# Commented rev 0.7
 
+		if MessageFromButterflyPort[:2] == "\r\n":
+			MessageFromButterflyPort = MessageFromButterflyPort[:2]
+			print("U3b: " + MessageFromButterflyPort)
 
 	# <--- rev 0.6
-
-
 
 	# Extract information from the NMEA-sentence
 	while len(listNMEA) > 0:
@@ -903,7 +969,7 @@ while True:
 		# Extracting a line from the list
 		lineNMEA = listNMEA.pop()
 
-		# Write messageto serial port
+		# Write message to serial port
 		u3.write(lineNMEA)
 		
 		#print("lineNMEA: " + lineNMEA)
